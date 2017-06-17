@@ -343,8 +343,8 @@ contract ico is safeMath {
             } else {
                 rate = 1;
             }
-            extra = (extra * rate / 100) - affiliate[affilateAddress].paid;
-            affiliate[affilateAddress].paid = extra;
+            extra = safeSub(extra * rate / 100, affiliate[affilateAddress].paid);
+            affiliate[affilateAddress].paid = safeAdd(affiliate[affilateAddress].paid, extra);
             abstractToken(tokenAddr).mint(affilateAddress, extra);
         }
         checkPremium(beneficiaryAddress);
