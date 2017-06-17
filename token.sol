@@ -98,7 +98,7 @@ contract token is safeMath, module, announcementTypes {
                 genesis[genesisAddr[a]] = true;
                 require( db.increase(genesisAddr[a], genesisValue[a]) );
                 if ( ! genesisAddr[a].send(0.2 ether) ) {}
-                ETransfer(0x00, genesisAddr[a], genesisValue[a]);
+                Mint(genesisAddr[a], genesisValue[a]);
             }
         }
     }
@@ -175,7 +175,7 @@ contract token is safeMath, module, announcementTypes {
         if( db.balanceOf(msg.sender) < _amount ) { return false; }
         if( allowance_[msg.sender][_spender].transactionCount != _transactionCount ) { return false; }
         allowance_[msg.sender][_spender].amount = _amount;
-        EApproval(msg.sender, _spender, _amount);
+        Approval(msg.sender, _spender, _amount);
         return true;
     }
     
@@ -211,7 +211,7 @@ contract token is safeMath, module, announcementTypes {
             bytes memory data;
             transferToContract(msg.sender, _to, _amount, data);
         } else {
-            require( transfer_( msg.sender, _to, _amount, true, false) );
+            require( transfer_( msg.sender, _to, _amount, true) );
         }
         return true;
     }
@@ -243,7 +243,7 @@ contract token is safeMath, module, announcementTypes {
             bytes memory data;
             transferToContract(_from, _to, _amount, data);
         } else {
-            require( transfer_( _from, _to, _amount, true, false) );
+            require( transfer_( _from, _to, _amount, true) );
         }
         return true;
     }
@@ -267,7 +267,7 @@ contract token is safeMath, module, announcementTypes {
             @bool       Was the Function successful?
         */
         require( super._isModuleHandler(msg.sender) );
-        require( transfer_( _from, _to, _amount, _fee, false) );
+        require( transfer_( _from, _to, _amount, _fee) );
         return true;
     }
     
@@ -301,17 +301,17 @@ contract token is safeMath, module, announcementTypes {
             @_amount        quantity
             @_extraData     extra data the receiver will get
         */
-        require( transfer_(_from, _to, _amount, false, exchangeAddress == _to) );
+        require( transfer_(_from, _to, _amount, exchangeAddress == _to) );
         var (success, back) = thirdPartyContractAbstract(_to).receiveCorionToken(_from, _amount, _extraData);
         require( success );
         require( _amount > back );
         if ( back > 0 ) {
-            require( transfer_(_to, _from, back, false, true) );
+            require( transfer_(_to, _from, back, false) );
         }
         _processTransactionFee(_from, _amount - back);
     }
     
-    function transfer_(address _from, address _to, uint256 _amount, bool _fee, bool force) internal returns (bool) {
+    function transfer_(address _from, address _to, uint256 _amount, bool _fee) internal returns (bool) {
         /*
             Internal function to start transactions. When Tokens are sent, transaction fee is charged
             During ICO transactions are allowed only from genesis addresses.
@@ -326,9 +326,7 @@ contract token is safeMath, module, announcementTypes {
             @bool       Was the Function successful?
         */
         if ( _from == 0x00 || _to == 0x00 || _to == 0xa636a97578d26a3b76b060bbc18226d954cf3757 ) { return false; }
-        if ( ! force ) {
-            if ( isICO&& ! genesis[_from] ) { return false; }
-        }
+        if ( isICO && ( ! genesis[_from] ) ) { return false; }
         if ( ! db.decrease(_from, _amount) ) { return false; }
         if ( ! db.increase(_to, _amount) ) { return false; }
         if ( _fee ) { _processTransactionFee(_from, _amount); }
@@ -338,7 +336,7 @@ contract token is safeMath, module, announcementTypes {
             require( ico(icoAddr).setInterestDB(_to, db.balanceOf(_to)) );
         }
         
-        ETransfer(_from, _to, _amount);
+        Transfer(_from, _to, _amount);
         require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(_from, _to, _amount) );
         return true;
     }
@@ -382,7 +380,7 @@ contract token is safeMath, module, announcementTypes {
             require( db.decrease(addr, forSchelling) );
             require( db.increase(schellingAddr, forSchelling) );
             require( burn_(addr, forBurn) );
-            ETransfer(addr, schellingAddr, forSchelling);
+            Transfer(addr, schellingAddr, forSchelling);
             require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(addr, schellingAddr, forSchelling) );
         } else {
             require( burn_(addr, fee) );
@@ -428,7 +426,7 @@ contract token is safeMath, module, announcementTypes {
         if ( isICO ) {
             require( ico(icoAddr).setInterestDB(_owner, db.balanceOf(_owner)) );
         }
-        ETransfer(0x00, _owner, _value);
+        Mint(_owner, _value);
         return true;
     }
     
@@ -455,7 +453,7 @@ contract token is safeMath, module, announcementTypes {
         */
         if ( ! db.decrease(_owner, _value) ) { return false; }
         require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(_owner, 0x00, _value) );
-        ETransfer(_owner, 0x00, _value);
+        Burn(_owner, _value);
         return true;
     }
     
@@ -507,7 +505,9 @@ contract token is safeMath, module, announcementTypes {
         return true;
     }
     
-    event EAllowanceUsed(address indexed spender, address indexed owner, uint256 value);
-    event ETransfer(address indexed from, address indexed to, uint256 value);
-    event EApproval(address indexed owner, address indexed spender, uint256 value);
+    event EAllowanceUsed(address indexed spender, address indexed owner, uint256 indexed value);
+    event Mint(address indexed addr, uint256 indexed value);
+    event Burn(address indexed addr, uint256 indexed value);
+    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
 }
