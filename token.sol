@@ -187,8 +187,8 @@ contract token is safeMath, module, announcementTypes {
             @_spender      authorised address
             @remaining     tokens to be spent
         */
-        remaining = allowance_[msg.sender][_owner].amount;
-        transactionCount = allowance_[msg.sender][_owner].transactionCount;
+        remaining = allowance_[_owner][_spender].amount;
+        transactionCount = allowance_[_owner][_spender].transactionCount;
     }
     
     /**
