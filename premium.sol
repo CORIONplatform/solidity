@@ -222,6 +222,7 @@ contract premium is module, safeMath {
         */
         if ( _from != msg.sender ) {
             allowance_[_from][msg.sender].amount = safeSub(allowance_[_from][msg.sender].amount, _amount);
+            allowance_[_from][msg.sender].transactionCount++;
             EAllowanceUsed(msg.sender, _from, _amount);
         }
         if ( isContract(_to) ) {
