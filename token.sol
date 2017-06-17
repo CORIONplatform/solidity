@@ -171,8 +171,8 @@ contract token is safeMath, module, announcementTypes {
             
             @bool               Was the Function successful?
         */
-        if( msg.sender != _spender ) { return false; }
-        if( db.balanceOf(msg.sender) >= _amount ) { return false; }
+        if( msg.sender == _spender ) { return false; }
+        if( db.balanceOf(msg.sender) < _amount ) { return false; }
         if( allowance_[msg.sender][_spender].transactionCount != _transactionCount ) { return false; }
         allowance_[msg.sender][_spender].amount = _amount;
         EApproval(msg.sender, _spender, _amount);
