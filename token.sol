@@ -289,7 +289,12 @@ contract token is safeMath, module, announcementTypes {
             @_extraData     extra data the receiver will get
             @bool           Was the Function successful?
         */
-        transferToContract(msg.sender, _to, _amount, _extraData);
+        if ( isContract(_to) ) {
+            transferToContract(_from, _to, _amount, _extraData);
+        } else {
+            transfer_( _from, _to, _amount, true);
+            Transfer(_from, _to, _amount);
+        }
         return true;
     }
     
