@@ -290,10 +290,10 @@ contract token is safeMath, module, announcementTypes {
             @bool           Was the Function successful?
         */
         if ( isContract(_to) ) {
-            transferToContract(_from, _to, _amount, _extraData);
+            transferToContract(msg.sender, _to, _amount, _extraData);
         } else {
-            transfer_( _from, _to, _amount, true);
-            Transfer(_from, _to, _amount);
+            transfer_( msg.sender, _to, _amount, true);
+            Transfer(msg.sender, _to, _amount);
         }
         return true;
     }
