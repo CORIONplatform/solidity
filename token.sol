@@ -131,7 +131,7 @@ contract token is safeMath, module, announcementTypes {
             
             @bool               Was the Function successful?
         */
-        require( approve_(_spender, _amount, _transactionCount) );
+        approve_(_spender, _amount, _transactionCount);
         return true;
     }
     
@@ -155,12 +155,12 @@ contract token is safeMath, module, announcementTypes {
             
             @bool               Was the Function successful?
         */
-        require( approve_(_spender, _amount, _transactionCount) );
+        approve_(_spender, _amount, _transactionCount);
         require( thirdPartyContractAbstract(_spender).approvedCorionToken(msg.sender, _amount, _extraData) );
         return true;
     }
     
-    function approve_(address _spender, uint256 _amount, uint256 _transactionCount) internal returns (bool) {
+    function approve_(address _spender, uint256 _amount, uint256 _transactionCount) internal {
         /*
             Internal Function to authorise another address to use a certain quantity of the authorising owner’s balance.
             If the transaction count not match the authorise fails.
@@ -168,15 +168,12 @@ contract token is safeMath, module, announcementTypes {
             @_spender           Address of authorised party
             @_amount            Token quantity
             @_transactionCount  Transaction count
-            
-            @bool               Was the Function successful?
         */
-        if( msg.sender == _spender ) { return false; }
-        if( db.balanceOf(msg.sender) < _amount ) { return false; }
-        if( allowance_[msg.sender][_spender].transactionCount != _transactionCount ) { return false; }
+        require( msg.sender != _spender );
+        require( db.balanceOf(msg.sender) >= _amount );
+        require( allowance_[msg.sender][_spender].transactionCount == _transactionCount );
         allowance_[msg.sender][_spender].amount = _amount;
         Approval(msg.sender, _spender, _amount);
-        return true;
     }
     
     function allowance(address _owner, address _spender) constant returns (uint256 remaining, uint256 transactionCount) {
@@ -211,7 +208,8 @@ contract token is safeMath, module, announcementTypes {
             bytes memory data;
             transferToContract(msg.sender, _to, _amount, data);
         } else {
-            require( transfer_( msg.sender, _to, _amount, true) );
+            transfer_( msg.sender, _to, _amount, true);
+            Transfer(msg.sender, _to, _amount);
         }
         return true;
     }
@@ -237,13 +235,14 @@ contract token is safeMath, module, announcementTypes {
         if ( _from != msg.sender ) {
             allowance_[_from][msg.sender].amount = safeSub(allowance_[_from][msg.sender].amount, _amount);
             allowance_[_from][msg.sender].transactionCount++;
-            EAllowanceUsed(msg.sender, _from, _amount);
+            AllowanceUsed(msg.sender, _from, _amount);
         }
         if ( isContract(_to) ) {
             bytes memory data;
             transferToContract(_from, _to, _amount, data);
         } else {
-            require( transfer_( _from, _to, _amount, true) );
+            transfer_( _from, _to, _amount, true);
+            Transfer(_from, _to, _amount);
         }
         return true;
     }
@@ -267,7 +266,8 @@ contract token is safeMath, module, announcementTypes {
             @bool       Was the Function successful?
         */
         require( super._isModuleHandler(msg.sender) );
-        require( transfer_( _from, _to, _amount, _fee) );
+        transfer_( _from, _to, _amount, _fee);
+        Transfer(_from, _to, _amount);
         return true;
     }
     
@@ -301,17 +301,18 @@ contract token is safeMath, module, announcementTypes {
             @_amount        quantity
             @_extraData     extra data the receiver will get
         */
-        require( transfer_(_from, _to, _amount, exchangeAddress == _to) );
+        transfer_(_from, _to, _amount, exchangeAddress == _to);
         var (success, back) = thirdPartyContractAbstract(_to).receiveCorionToken(_from, _amount, _extraData);
         require( success );
         require( _amount > back );
         if ( back > 0 ) {
-            require( transfer_(_to, _from, back, false) );
+            transfer_(_to, _from, back, false);
         }
         _processTransactionFee(_from, _amount - back);
+        Transfer(_from, _to, _amount-back, _extraData);
     }
     
-    function transfer_(address _from, address _to, uint256 _amount, bool _fee) internal returns (bool) {
+    function transfer_(address _from, address _to, uint256 _amount, bool _fee) internal {
         /*
             Internal function to start transactions. When Tokens are sent, transaction fee is charged
             During ICO transactions are allowed only from genesis addresses.
@@ -323,22 +324,18 @@ contract token is safeMath, module, announcementTypes {
             @_to        to who
             @_amount    quantity
             @_fee       deduct transaction fee - yes or no?
-            @bool       Was the Function successful?
         */
-        if ( _from == 0x00 || _to == 0x00 || _to == 0xa636a97578d26a3b76b060bbc18226d954cf3757 ) { return false; }
-        if ( isICO && ( ! genesis[_from] ) ) { return false; }
-        if ( ! db.decrease(_from, _amount) ) { return false; }
-        if ( ! db.increase(_to, _amount) ) { return false; }
+        require( _from != 0x00 && _to != 0x00 && _to != 0xa636a97578d26a3b76b060bbc18226d954cf3757 );
+        require( ( ! isICO) || genesis[_from] );
+        require( db.decrease(_from, _amount) );
+        require( db.increase(_to, _amount) );
         if ( _fee ) { _processTransactionFee(_from, _amount); }
-        
         if ( isICO ) {
             require( ico(icoAddr).setInterestDB(_from, db.balanceOf(_from)) );
             require( ico(icoAddr).setInterestDB(_to, db.balanceOf(_to)) );
         }
-        
         Transfer(_from, _to, _amount);
         require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(_from, _to, _amount) );
-        return true;
     }
     
     /**
@@ -356,20 +353,19 @@ contract token is safeMath, module, announcementTypes {
             @bool       Was the Function successful?
         */
         require( super._isModuleHandler(msg.sender) );
-        require( _processTransactionFee(addr, value) );
+        _processTransactionFee(addr, value);
         return true;
     }
     
-    function _processTransactionFee(address addr, uint256 value) internal returns (bool) {
+    function _processTransactionFee(address addr, uint256 value) internal {
         /*
             Internal function to charge the transaction fee. A certain quantity is burnt, the rest is sent to the Schelling game prize pool.
             No transaction fee during ICO.
             
             @addr       from who
             @value      quantity to calculate the fee
-            @bool       Was the Function successful?
         */
-        if ( isICO ) { return true; }
+        if ( isICO ) { return; }
         var fee = getTransactionFee(value);
         uint256 forBurn = fee * transactionFeeBurn / 100;
         uint256 forSchelling = fee - forBurn;
@@ -379,13 +375,12 @@ contract token is safeMath, module, announcementTypes {
         if ( schellingAddr != 0x00 ) {
             require( db.decrease(addr, forSchelling) );
             require( db.increase(schellingAddr, forSchelling) );
-            require( burn_(addr, forBurn) );
+            burn_(addr, forBurn);
             Transfer(addr, schellingAddr, forSchelling);
             require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(addr, schellingAddr, forSchelling) );
         } else {
-            require( burn_(addr, fee) );
+            burn_(addr, fee);
         }
-        return true;
     }
     
     function getTransactionFee(uint256 value) public constant returns (uint256 fee) {
@@ -409,25 +404,23 @@ contract token is safeMath, module, announcementTypes {
             @bool       Was the Function successful?
         */
         require( super._isModuleHandler(msg.sender) || msg.sender == icoAddr );
-        require( mint_(_owner, _value) );
+        mint_(_owner, _value);
         return true;
     }
     
-    function mint_(address _owner, uint256 _value) internal returns (bool) {
+    function mint_(address _owner, uint256 _value) internal {
         /*
             Internal function to generate tokens
             
             @_owner     Token is credited to this address
             @_value     quantity
-            @bool       Was the Function successful?
         */
-        if ( ! db.increase(_owner, _value) ) { return false; }
+        require( db.increase(_owner, _value) );
         require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(0x00, _owner, _value) );
         if ( isICO ) {
             require( ico(icoAddr).setInterestDB(_owner, db.balanceOf(_owner)) );
         }
         Mint(_owner, _value);
-        return true;
     }
     
     function burn(address _owner, uint256 _value) isReady external returns (bool) {
@@ -439,22 +432,20 @@ contract token is safeMath, module, announcementTypes {
             @bool       Was the Function successful?
         */
         require( super._isModuleHandler(msg.sender) );
-        require( burn_(_owner, _value) );
+        burn_(_owner, _value);
         return true;
     }
     
-    function burn_(address _owner, uint256 _value) internal returns (bool) {
+    function burn_(address _owner, uint256 _value) internal {
         /*
             Internal function to burn the token
      
             @_owner     Burn the token from this address
             @_value     quantity
-            @bool       Was the Function successful?
         */
-        if ( ! db.decrease(_owner, _value) ) { return false; }
+        require( db.decrease(_owner, _value) );
         require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(_owner, 0x00, _value) );
         Burn(_owner, _value);
-        return true;
     }
     
     function isContract(address addr) internal returns (bool) {
@@ -505,7 +496,7 @@ contract token is safeMath, module, announcementTypes {
         return true;
     }
     
-    event EAllowanceUsed(address indexed spender, address indexed owner, uint256 indexed value);
+    event AllowanceUsed(address indexed spender, address indexed owner, uint256 indexed value);
     event Mint(address indexed addr, uint256 indexed value);
     event Burn(address indexed addr, uint256 indexed value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
