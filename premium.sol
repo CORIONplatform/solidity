@@ -252,7 +252,12 @@ contract premium is module, safeMath {
             @_extraData  Extra data that will be given to the receiver
             @bool        If the function was successful.
         */
-        transferToContract(msg.sender, _to, _amount, _extraData);
+        if ( isContract(_to) ) {
+            transferToContract(msg.sender, _to, _amount, _extraData);
+        } else {
+            transfer_( msg.sender, _to, _amount, true);
+            Transfer(msg.sender, _to, _amount);
+        }
         return true;
     }
     
