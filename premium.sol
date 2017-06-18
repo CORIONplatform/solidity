@@ -54,7 +54,7 @@ contract premium is module, safeMath {
     
     struct _allowance {
         uint256 amount;
-        uint256 transactionCount;
+        uint256 nonce;
     }
     
     mapping(address => mapping(address => _allowance)) private allowance_;
@@ -146,7 +146,7 @@ contract premium is module, safeMath {
         return true;
     }
     
-    function approve_(address _spender, uint256 _amount, uint256 _transactionCount) isReady internal {
+    function approve_(address _spender, uint256 _amount, uint256 _nonce) isReady internal {
         /*
             Inner function to authorize another address to use an exact amount of the principal’s balance. 
             If the transaction count not match the authorise fails.
@@ -159,12 +159,12 @@ contract premium is module, safeMath {
         */
         require( msg.sender != _spender );
         require( db.balanceOf(msg.sender) >= _amount );
-        require( allowance_[msg.sender][_spender].transactionCount == _transactionCount );
+        require( allowance_[msg.sender][_spender].nonce == _nonce );
         allowance_[msg.sender][_spender].amount = _amount;
         Approval(msg.sender, _spender, _amount);
     }
     
-    function allowance(address _owner, address _spender) constant returns (uint256 remaining, uint256 transactionCount) {
+    function allowance(address _owner, address _spender) constant returns (uint256 remaining, uint256 nonce) {
         /*
             Get the quantity of tokens given to be used
             
@@ -173,7 +173,7 @@ contract premium is module, safeMath {
             @remaining     tokens to be spent
         */
         remaining = allowance_[_owner][_spender].amount;
-        transactionCount = allowance_[_owner][_spender].transactionCount;
+        nonce = allowance_[_owner][_spender].nonce;
     }
     
     /**
@@ -222,7 +222,7 @@ contract premium is module, safeMath {
         */
         if ( _from != msg.sender ) {
             allowance_[_from][msg.sender].amount = safeSub(allowance_[_from][msg.sender].amount, _amount);
-            allowance_[_from][msg.sender].transactionCount++;
+            allowance_[_from][msg.sender].nonce++;
             AllowanceUsed(msg.sender, _from, _amount);
         }
         if ( isContract(_to) ) {
@@ -255,7 +255,7 @@ contract premium is module, safeMath {
         if ( isContract(_to) ) {
             transferToContract(msg.sender, _to, _amount, _extraData);
         } else {
-            transfer_( msg.sender, _to, _amount, true);
+            transfer_( msg.sender, _to, _amount);
             Transfer(msg.sender, _to, _amount);
         }
         return true;
