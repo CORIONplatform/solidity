@@ -62,7 +62,7 @@ contract token is safeMath, module, announcementTypes {
     
     struct _allowance {
         uint256 amount;
-        uint256 transactionCount;
+        uint256 nonce;
     }
     
     mapping(address => mapping(address => _allowance)) private allowance_;
@@ -160,7 +160,7 @@ contract token is safeMath, module, announcementTypes {
         return true;
     }
     
-    function approve_(address _spender, uint256 _amount, uint256 _transactionCount) internal {
+    function approve_(address _spender, uint256 _amount, uint256 _nonce) internal {
         /*
             Internal Function to authorise another address to use a certain quantity of the authorising owner’s balance.
             If the transaction count not match the authorise fails.
@@ -171,12 +171,12 @@ contract token is safeMath, module, announcementTypes {
         */
         require( msg.sender != _spender );
         require( db.balanceOf(msg.sender) >= _amount );
-        require( allowance_[msg.sender][_spender].transactionCount == _transactionCount );
+        require( allowance_[msg.sender][_spender].nonce == _nonce );
         allowance_[msg.sender][_spender].amount = _amount;
         Approval(msg.sender, _spender, _amount);
     }
     
-    function allowance(address _owner, address _spender) constant returns (uint256 remaining, uint256 transactionCount) {
+    function allowance(address _owner, address _spender) constant returns (uint256 remaining, uint256 nonce) {
         /*
             Get the quantity of tokens given to be used
             
@@ -185,7 +185,7 @@ contract token is safeMath, module, announcementTypes {
             @remaining     tokens to be spent
         */
         remaining = allowance_[_owner][_spender].amount;
-        transactionCount = allowance_[_owner][_spender].transactionCount;
+        nonce = allowance_[_owner][_spender].nonce;
     }
     
     /**
@@ -234,7 +234,7 @@ contract token is safeMath, module, announcementTypes {
         */
         if ( _from != msg.sender ) {
             allowance_[_from][msg.sender].amount = safeSub(allowance_[_from][msg.sender].amount, _amount);
-            allowance_[_from][msg.sender].transactionCount++;
+            allowance_[_from][msg.sender].nonce++;
             AllowanceUsed(msg.sender, _from, _amount);
         }
         if ( isContract(_to) ) {
