@@ -223,7 +223,7 @@ contract premium is module, safeMath {
         if ( _from != msg.sender ) {
             allowance_[_from][msg.sender].amount = safeSub(allowance_[_from][msg.sender].amount, _amount);
             allowance_[_from][msg.sender].transactionCount++;
-            EAllowanceUsed(msg.sender, _from, _amount);
+            AllowanceUsed(msg.sender, _from, _amount);
         }
         if ( isContract(_to) ) {
             bytes memory data;
@@ -349,7 +349,7 @@ contract premium is module, safeMath {
         return db.totalSupply();
     }
     
-    event EAllowanceUsed(address indexed spender, address indexed owner, uint256 indexed value);
+    event AllowanceUsed(address indexed spender, address indexed owner, uint256 indexed value);
     event Mint(address indexed addr, uint256 indexed value);
     event Burn(address indexed addr, uint256 indexed value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
