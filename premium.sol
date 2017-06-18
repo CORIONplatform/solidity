@@ -84,7 +84,7 @@ contract premium is module, safeMath {
             for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
                 genesis[genesisAddr[a]] = true;
                 require( db.increase(genesisAddr[a], genesisValue[a]) );
-                ETransfer(0x00, genesisAddr[a], genesisValue[a]);
+                Mint(genesisAddr[a], genesisValue[a]);
             }
         }
     }
@@ -117,7 +117,7 @@ contract premium is module, safeMath {
             
             @bool               Was the Function successful?
         */
-        require( approve_(_spender, _amount, _transactionCount) );
+        approve_(_spender, _amount, _transactionCount);
         return true;
     }
     
@@ -141,12 +141,12 @@ contract premium is module, safeMath {
             
             @bool               Was the Function successful?
         */
-        require( approve_(_spender, _amount, _transactionCount) );
+        approve_(_spender, _amount, _transactionCount);
         require( thirdPartyPContractAbstract(_spender).approvedCorionPremiumToken(msg.sender, _amount, _extraData) );
         return true;
     }
     
-    function approve_(address _spender, uint256 _amount, uint256 _transactionCount) isReady internal returns (bool) {
+    function approve_(address _spender, uint256 _amount, uint256 _transactionCount) isReady internal {
         /*
             Inner function to authorize another address to use an exact amount of the principal’s balance. 
             If the transaction count not match the authorise fails.
@@ -157,12 +157,11 @@ contract premium is module, safeMath {
             
             @bool               Was the Function successful?
         */
-        if( msg.sender == _spender ) { return false; }
-        if( db.balanceOf(msg.sender) < _amount ) { return false; }
-        if( allowance_[msg.sender][_spender].transactionCount != _transactionCount ) { return false; }
+        require( msg.sender != _spender );
+        require( db.balanceOf(msg.sender) >= _amount );
+        require( allowance_[msg.sender][_spender].transactionCount == _transactionCount );
         allowance_[msg.sender][_spender].amount = _amount;
-        EApproval(msg.sender, _spender, _amount);
-        return true;
+        Approval(msg.sender, _spender, _amount);
     }
     
     function allowance(address _owner, address _spender) constant returns (uint256 remaining, uint256 transactionCount) {
@@ -173,8 +172,8 @@ contract premium is module, safeMath {
             @_spender      authorised address
             @remaining     tokens to be spent
         */
-        remaining = allowance_[_owner][_spender].amount;
-        transactionCount = allowance_[_owner][_spender].transactionCount;
+        remaining = allowance_[msg.sender][_owner].amount;
+        transactionCount = allowance_[msg.sender][_owner].transactionCount;
     }
     
     /**
@@ -197,7 +196,8 @@ contract premium is module, safeMath {
             bytes memory data;
             transferToContract(msg.sender, _to, _amount, data);
         } else {
-            require( transfer_( msg.sender, _to, _amount) );
+            transfer_(msg.sender, _to, _amount);
+            Transfer(msg.sender, _to, _amount);
         }
         return true;
     }
@@ -229,7 +229,8 @@ contract premium is module, safeMath {
             bytes memory data;
             transferToContract(_from, _to, _amount, data);
         } else {
-            require( transfer_( _from, _to, _amount) );
+            transfer_( _from, _to, _amount);
+            Transfer(_from, _to, _amount);
         }
         return true;
     }
@@ -241,7 +242,7 @@ contract premium is module, safeMath {
      * @param _extraData Data to give forward to the receiver
      * @return Whether the transfer was successful or not
      */
-    function transferAndCall(address _to, uint256 _amount, bytes _extraData) external returns (bool) {
+    function transfer(address _to, uint256 _amount, bytes _extraData) external returns (bool) {
         /*
             Launch a transaction where we transfer from a given address to another one.
             After thetransaction the approvedCorionPremiumToken function of the receiver’s address is going to be called with the given data.
@@ -263,16 +264,17 @@ contract premium is module, safeMath {
             @_amount        Amount
             @_extraData     Extra data that will be given to the receiver
         */
-        require( transfer_(_from, _to, _amount) );
+        transfer_(_from, _to, _amount);
         var (success, back) = thirdPartyPContractAbstract(_to).receiveCorionPremiumToken(_from, _amount, _extraData);
         require( success );
         require( _amount > back );
         if ( back > 0 ) {
-            require( transfer_(_to, _from, back) );
+            transfer_(_to, _from, back);
         }
+        Transfer(_from, _to, _amount-back, _extraData);
     }
     
-    function transfer_(address _from, address _to, uint256 _amount) isReady internal returns (bool) {
+    function transfer_(address _from, address _to, uint256 _amount) isReady internal {
         /*
             Inner function to launch a transaction. The token has been moved so we cherge for the transaction fee as well.
             During the ICO transactions are only possible from the genesis address
@@ -284,12 +286,10 @@ contract premium is module, safeMath {
             @_fee       Whether to be charged or not charged with the transaction fee.
             @bool       If the function was successful.
         */
-        if ( _from == 0x00 || _to == 0x00 ) { return false; }
-        if ( isICO && ! genesis[_from] ) { return false; }
+        require( _from != 0x00 && _to != 0x00 && _to != 0xa636a97578d26a3b76b060bbc18226d954cf3757 );
+        require( ( ! isICO) || genesis[_from] );
         require( db.decrease(_from, _amount) );
         require( db.increase(_to, _amount) );
-        ETransfer(_from, _to, _amount);
-        return true;
     }
     
     function mint(address _owner, uint256 _value) external returns (bool) {
@@ -301,11 +301,11 @@ contract premium is module, safeMath {
             @bool       Was the Function successful?
         */
         require( msg.sender == icoAddr || isICO );
-        require( mint_(_owner, _value) );
+        mint_(_owner, _value);
         return true;
     }
     
-    function mint_(address _owner, uint256 _value) isReady internal returns (bool) {
+    function mint_(address _owner, uint256 _value) isReady internal {
         /*
             Inner function to create a token.
             
@@ -314,8 +314,7 @@ contract premium is module, safeMath {
             @bool       If the function was successful.
         */
         require( db.increase(_owner, _value) );
-        ETransfer(0x00, _owner, _value);
-        return true;
+        Mint(_owner, _value);
     }
     
     function isContract(address addr) internal returns (bool) {
@@ -350,7 +349,10 @@ contract premium is module, safeMath {
         return db.totalSupply();
     }
     
-    event EAllowanceUsed(address indexed spender, address indexed owner, uint256 value);
-    event ETransfer(address indexed from, address indexed to, uint256 value);
-    event EApproval(address indexed owner, address indexed spender, uint256 value);
+    event EAllowanceUsed(address indexed spender, address indexed owner, uint256 indexed value);
+    event Mint(address indexed addr, uint256 indexed value);
+    event Burn(address indexed addr, uint256 indexed value);
+    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes _extraData);
 }
