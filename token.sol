@@ -278,7 +278,7 @@ contract token is safeMath, module, announcementTypes {
      * @param _extraData Data to give forward to the receiver
      * @return Whether the transfer was successful or not
      */
-    function transferAndCall(address _to, uint256 _amount, bytes _extraData) isReady external returns (bool) {
+    function transfer(address _to, uint256 _amount, bytes _extraData) isReady external returns (bool) {
         /*
             Start transaction to send a quantity from a given address to another address
             After transaction the function `receiveCorionToken`of the receiver is called  by the given data
@@ -510,4 +510,5 @@ contract token is safeMath, module, announcementTypes {
     event Burn(address indexed addr, uint256 indexed value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
     event Transfer(address indexed _from, address indexed _to, uint256 _value);
+    event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes _extraData);
 }
