@@ -1,55 +1,58 @@
 pragma solidity ^0.4.11;
 
 import "safeMath.sol";
+import "owned.sol";
 
-contract tokenDB is safeMath {
-    address private owner;
+contract tokenDB is safeMath, ownedDB {
+
+    struct _allowance {
+        uint256 amount;
+        uint256 nonce;
+    }
     
+    mapping(address => mapping(address => _allowance)) private allowance;
     mapping (address => uint256) public balanceOf;
     uint256 public totalSupply;
     
-    function replaceOwner(address newOwner) external returns(bool) {
+    function increase(address _owner, uint256 _value) external returns(bool) {
         /*
-            Set new owner. It can be called only by owner, if owner is not set anyone can call it. 
-            
-            @newOwner       New owner’s address
-        */
-        require( owner == 0x00 || msg.sender == owner );
-        owner = newOwner;
-        return true;
-    }
-    
-    function increase(address _owner, uint256 _value) isOwner external returns(bool) {
-        /*
-            Increase of balance of the address in database. only owner can call it.
+            Increase of balance of the address in database. Only owner can call it.
             
             @_owner         Address
             @_value         quantity
             @bool           Was the Function successful?
         */
+        require( isOwner() );
         balanceOf[_owner] = safeAdd(balanceOf[_owner], _value);
         totalSupply = safeAdd(totalSupply, _value);
         return true;
     }
     
-    function decrease(address _owner, uint256 _value) isOwner external returns(bool) {
+    function decrease(address _owner, uint256 _value) external returns(bool) {
         /*
-            Decrease of balance of the address in database. only owner can call it.
+            Decrease of balance of the address in database. Only owner can call it.
             
             @_owner         Address
             @_value         quantity
             @bool           Was the Function successful?
         */
+        require( isOwner() );
         balanceOf[_owner] = safeSub(balanceOf[_owner], _value);
         totalSupply = safeSub(totalSupply, _value);
         return true;
     }
     
-    modifier isOwner {
+    function setAllowance(address _owner, address _spender, uint256 _amount, uint256 _nonce) external returns(bool) {
         /*
-            Only owner can call it.
+            Set allowance in the database. Only owner can call it.
         */
-        require( msg.sender == owner ); _; 
+        require( isOwner() );
+        allowance[_owner][_spender].amount = _amount;
+        allowance[_owner][_spender].nonce = _nonce;
+        return true;
     }
     
+    function getAllowance(address _owner, address _spender) constant returns(bool, uint256, uint256) {
+        return ( true, allowance[_owner][_spender].amount, allowance[_owner][_spender].nonce );
+    }
 }

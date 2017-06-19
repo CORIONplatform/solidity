@@ -60,12 +60,6 @@ contract token is safeMath, module, announcementTypes {
     address private exchangeAddress;
     bool    public  isICO                   = true;
     
-    struct _allowance {
-        uint256 amount;
-        uint256 nonce;
-    }
-    
-    mapping(address => mapping(address => _allowance)) private allowance_;
     mapping(address => bool) private genesis;
     
     function token(bool _forReplace, address _moduleHandler, address _db, address _icoAddr, address _exchangeAddress, address[] genesisAddr, uint256[] genesisValue) payable {
@@ -171,8 +165,7 @@ contract token is safeMath, module, announcementTypes {
         */
         require( msg.sender != _spender );
         require( db.balanceOf(msg.sender) >= _amount );
-        require( allowance_[msg.sender][_spender].nonce == _nonce );
-        allowance_[msg.sender][_spender].amount = _amount;
+        require( db.setAllowance(msg.sender, _spender, _amount, _nonce) );
         Approval(msg.sender, _spender, _amount);
     }
     
@@ -186,8 +179,9 @@ contract token is safeMath, module, announcementTypes {
             @remaining     Tokens to be spent
             @nonce         Transaction count
         */
-        remaining = allowance_[_owner][_spender].amount;
-        nonce = allowance_[_owner][_spender].nonce;
+        var (a, b, c) = db.getAllowance(_owner, _spender);
+        require( a );
+        return (b, c);
     }
     
     /**
@@ -237,8 +231,11 @@ contract token is safeMath, module, announcementTypes {
             @bool       Was the Function successful?
         */
         if ( _from != msg.sender ) {
-            allowance_[_from][msg.sender].amount = safeSub(allowance_[_from][msg.sender].amount, _amount);
-            allowance_[_from][msg.sender].nonce++;
+            var (a, b, c) = db.getAllowance(_from, msg.sender);
+            require( a );
+            b = safeSub(b, _amount);
+            c = safeAdd(c, 1);
+            require( db.setAllowance(_from, msg.sender, b, c) );
             AllowanceUsed(msg.sender, _from, _amount);
         }
         bytes memory data;
