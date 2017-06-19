@@ -179,9 +179,9 @@ contract token is safeMath, module, announcementTypes {
             @remaining     Tokens to be spent
             @nonce         Transaction count
         */
-        var (a, b, c) = db.getAllowance(_owner, _spender);
-        require( a );
-        return (b, c);
+        var (_success, _remaining, _nonce) = db.getAllowance(_owner, _spender);
+        require( _success );
+        return (_remaining, _nonce);
     }
     
     /**
