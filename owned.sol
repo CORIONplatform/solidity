@@ -5,9 +5,9 @@ contract owned {
     
     function replaceOwner(address newOwner) external returns(bool) {
         /*
-            owner replace.
+            Owner replace.
             
-            @newOwner address of new owner.
+            @newOwner   Address of new owner.
         */
         require( isOwner() );
         owner = newOwner;
@@ -18,8 +18,36 @@ contract owned {
         /*
             Check of owner address.
             
-            @bool owner has called the contract or not 
+            @bool   Owner has called the contract or not 
         */
+        return owner == msg.sender;
+    }
+}
+
+
+contract ownedDB {
+    address private owner;
+    
+    function replaceOwner(address newOwner) external returns(bool) {
+        /*
+            Owner replace.
+            
+            @newOwner   Address of new owner.
+        */
+        require( isOwner() );
+        owner = newOwner;
+        return true;
+    }
+    
+    function isOwner() internal returns(bool) {
+        /*
+            Check of owner address.
+            
+            @bool   Owner has called the contract or not 
+        */
+        if ( owner == 0x00 ) {
+            return true;
+        }
         return owner == msg.sender;
     }
 }
