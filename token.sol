@@ -179,9 +179,9 @@ contract token is safeMath, module, announcementTypes {
             @remaining     Tokens to be spent
             @nonce         Transaction count
         */
-        var (a, b, c) = db.getAllowance(_owner, _spender);
-        require( a );
-        return (b, c);
+        var (_success, _remaining, _nonce) = db.getAllowance(_owner, _spender);
+        require( _success );
+        return (_remaining, _nonce);
     }
     
     /**
@@ -231,11 +231,11 @@ contract token is safeMath, module, announcementTypes {
             @bool       Was the Function successful?
         */
         if ( _from != msg.sender ) {
-            var (a, b, c) = db.getAllowance(_from, msg.sender);
-            require( a );
-            b = safeSub(b, _amount);
-            c = safeAdd(c, 1);
-            require( db.setAllowance(_from, msg.sender, b, c) );
+            var (_success, _reamining, _nonce) = db.getAllowance(_from, msg.sender);
+            require( _success );
+            _reamining = safeSub(_reamining, _amount);
+            _nonce = safeAdd(_nonce, 1);
+            require( db.setAllowance(_from, msg.sender, _reamining, _nonce) );
             AllowanceUsed(msg.sender, _from, _amount);
         }
         bytes memory data;
@@ -333,6 +333,9 @@ contract token is safeMath, module, announcementTypes {
             @_amount    Quantity
             @_fee       Deduct transaction fee - yes or no?
         */
+        if( _fee ) {
+            require( db.balanceOf(_from) >= _amount + getTransactionFee_(_amount) );
+        }
         require( _from != 0x00 && _to != 0x00 && _to != 0xa636a97578d26a3b76b060bbc18226d954cf3757 );
         require( ( ! isICO) || genesis[_from] );
         require( db.decrease(_from, _amount) );
@@ -374,7 +377,7 @@ contract token is safeMath, module, announcementTypes {
             @value      Quantity to calculate the fee
         */
         if ( isICO ) { return; }
-        var fee = getTransactionFee(value);
+        var fee = getTransactionFee_(value);
         uint256 forBurn = fee * transactionFeeBurn / 100;
         uint256 forSchelling = fee - forBurn;
         
@@ -394,7 +397,18 @@ contract token is safeMath, module, announcementTypes {
     
     function getTransactionFee(uint256 value) public constant returns (uint256 fee) {
         /*
-            Transaction fee query
+            Transaction fee query.
+            
+            @value      Quantity to calculate the fee
+            
+            @fee        Amount of Transaction fee
+        */
+        return getTransactionFee_(value);
+    }
+    
+    function getTransactionFee_(uint256 value) internal returns (uint256 fee) {
+        /*
+            Internal transaction fee query.
             
             @value      Quantity to calculate the fee
             

@@ -52,7 +52,7 @@ contract tokenDB is safeMath, ownedDB {
         return true;
     }
     
-    function getAllowance(address _owner, address _spender) constant returns(bool, uint256, uint256) {
+    function getAllowance(address _owner, address _spender) constant returns(bool success, uint256 remaining, uint256 nonce) {
         return ( true, allowance[_owner][_spender].amount, allowance[_owner][_spender].nonce );
     }
 }

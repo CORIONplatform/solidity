@@ -169,9 +169,9 @@ contract premium is module, safeMath {
             @remaining     Tokens to be spent
             @nonce         Transaction count
         */
-        var (a, b, c) = db.getAllowance(_owner, _spender);
-        require( a );
-        return (b, c);
+        var (_success, _remaining, _nonce) = db.getAllowance(_owner, _spender);
+        require( _success );
+        return (_remaining, _nonce);
     }
     
     /**
@@ -221,11 +221,11 @@ contract premium is module, safeMath {
             @bool       If the function was successful.
         */
         if ( _from != msg.sender ) {
-            var (a, b, c) = db.getAllowance(_from, msg.sender);
-            require( a );
-            b = safeSub(b, _amount);
-            c = safeAdd(c, 1);
-            require( db.setAllowance(_from, msg.sender, b, c) );
+            var (_success, _reamining, _nonce) = db.getAllowance(_from, msg.sender);
+            require( _success );
+            _reamining = safeSub(_reamining, _amount);
+            _nonce = safeAdd(_nonce, 1);
+            require( db.setAllowance(_from, msg.sender, _reamining, _nonce) );
             AllowanceUsed(msg.sender, _from, _amount);
         }
         bytes memory data;
