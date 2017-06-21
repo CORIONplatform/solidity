@@ -12,27 +12,27 @@ contract thirdPartyPContractAbstract {
 contract ptokenDB is tokenDB {}
 
 contract premium is module, safeMath {
-    function connectModule() external returns (bool) {
+    function connectModule() external returns (bool success) {
         require( super._connectModule() );
         return true;
     }
-    function disconnectModule() external returns (bool) {
+    function disconnectModule() external returns (bool success) {
         require( super._disconnectModule() );
         return true;
     }
-    function replaceModule(address addr) external returns (bool) {
+    function replaceModule(address addr) external returns (bool success) {
         require( db.replaceOwner(addr) );
         require( super._replaceModule(addr) );
         return true;
     }
-    function disableModule(bool forever) external returns (bool) {
+    function disableModule(bool forever) external returns (bool success) {
         require( super._disableModule(forever) );
         return true;
     }
-    function isActive() public constant returns (bool) {
+    function isActive() public constant returns (bool success) {
         return super._isActive();
     }
-    function replaceModuleHandler(address newHandler) external returns (bool) {
+    function replaceModuleHandler(address newHandler) external returns (bool success) {
         require( super._replaceModuleHandler(newHandler) );
         return true;
     }
@@ -52,32 +52,27 @@ contract premium is module, safeMath {
     tokenDB private db;
     bool    public  isICO;
     
-    struct _allowance {
-        uint256 amount;
-        uint256 nonce;
-    }
-    
     mapping(address => bool) private genesis;
     
-    function premium(bool _forReplace, address _moduleHandler, address _db, address _icoAddr, address[] genesisAddr, uint256[] genesisValue) {
+    function premium(bool forReplace, address moduleHandler, address dbAddress, address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) {
         /*
             Setup function.
             If an ICOaddress is defined then the balance of the genesis addresses will be set as well.
             
-            @_forReplace        This address will be replaced with the old one or not.
-            @_moduleHandler     modulhandler’s address
-            @_db                Address of database
-            @_icoAddr           address of ico contract.
+            @forReplace         This address will be replaced with the old one or not.
+            @moduleHandler      Modulhandler’s address
+            @dbAddress          Address of database
+            @icoContractAddr    Address of ico contract.
             @genesisAddr        Array of the genesis addresses.
             @genesisValue       Array of the balance of the genesis addresses
         */
-        require( super._registerModuleHandler(_moduleHandler) );
-        require( _db != 0x00 );
-        db = ptokenDB(_db);
-        if ( ! _forReplace ) {
+        require( super._registerModuleHandler(moduleHandler) );
+        require( dbAddress != 0x00 );
+        db = ptokenDB(dbAddress);
+        if ( ! forReplace ) {
             require( db.replaceOwner(this) );
             isICO = true;
-            icoAddr = _icoAddr;
+            icoAddr = icoContractAddr;
             assert( genesisAddr.length == genesisValue.length );
             for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
                 genesis[genesisAddr[a]] = true;
@@ -87,11 +82,11 @@ contract premium is module, safeMath {
         }
     }
     
-    function closeIco() external returns (bool) {
+    function closeIco() external returns (bool success) {
         /*
             Finishing the ICO. Can be invited only by an ICO contract.
             
-            @bool        If the function was successful.
+            @success    If the function was successful.
         */
         require( isICO );
         isICO = false;
@@ -99,261 +94,260 @@ contract premium is module, safeMath {
     }
     
     /**
-     * @notice `msg.sender` approves `_spender` to spend `_amount` tokens on its behalf.
-     * @param _spender The address of the account able to transfer the tokens
-     * @param _amount The amount of tokens to be approved for transfer
-     * @param _nonce The transaction count of the authorised address
+     * @notice `msg.sender` approves `spender` to spend `amount` tokens on its behalf.
+     * @param spender The address of the account able to transfer the tokens
+     * @param amount The amount of tokens to be approved for transfer
+     * @param nonce The transaction count of the authorised address
      * @return True if the approval was successful
      */
-    function approve(address _spender, uint256 _amount, uint256 _nonce) isReady external returns (bool) {
+    function approve(address spender, uint256 amount, uint256 nonce) isReady external returns (bool success) {
         /*
             Authorize another address to use an exact amount of the principal’s balance.   
             
-            @_spender           Address of authorised party
-            @_amount            Token quantity
-            @_nonce             Transaction count
+            @spender    Address of authorised party
+            @amount     Token quantity
+            @nonce      Transaction count
             
-            @bool               Was the Function successful?
+            @success    Was the Function successful?
         */
-        approve_(_spender, _amount, _nonce);
+        _approve(spender, amount, nonce);
         return true;
     }
     
     /**
-     * @notice `msg.sender` approves `_spender` to spend `_amount` tokens on its behalf and notify the spender from your approve with your `_extraData` data.
-     * @param _spender The address of the account able to transfer the tokens
-     * @param _amount The amount of tokens to be approved for transfer
-     * @param _nonce The transaction count of the authorised address
-     * @param _extraData Data to give forward to the receiver
+     * @notice `msg.sender` approves `spender` to spend `amount` tokens on its behalf and notify the spender from your approve with your `extraData` data.
+     * @param spender The address of the account able to transfer the tokens
+     * @param amount The amount of tokens to be approved for transfer
+     * @param nonce The transaction count of the authorised address
+     * @param extraData Data to give forward to the receiver
      * @return True if the approval was successful
      */
-    function approveAndCall(address _spender, uint256 _amount, uint256 _nonce, bytes _extraData) isReady external returns (bool) {
+    function approveAndCall(address spender, uint256 amount, uint256 nonce, bytes extraData) isReady external returns (bool success) {
         /*
             Authorize another address to use an exact amount of the principal’s balance.
             After the transaction the approvedCorionPremiumToken function of the address will be called with the given data.
             
-            @_spender           Authorized address
-            @_amount            Token quantity
-            @_extraData         Extra data to be received by the receiver
-            @_nonce             Transaction count
+            @spender        Authorized address
+            @amount         Token quantity
+            @extraData      Extra data to be received by the receiver
+            @nonce          Transaction count
             
-            @bool               Was the Function successful?
+            @sucess         Was the Function successful?
         */
-        approve_(_spender, _amount, _nonce);
-        require( thirdPartyPContractAbstract(_spender).approvedCorionPremiumToken(msg.sender, _amount, _extraData) );
+        _approve(spender, amount, nonce);
+        require( thirdPartyPContractAbstract(spender).approvedCorionPremiumToken(msg.sender, amount, extraData) );
         return true;
     }
     
-    function approve_(address _spender, uint256 _amount, uint256 _nonce) isReady internal {
+    function _approve(address spender, uint256 amount, uint256 nonce) isReady internal {
         /*
             Inner function to authorize another address to use an exact amount of the principal’s balance. 
             If the transaction count not match the authorise fails.
             
-            @_spender           Address of authorised party
-            @_amount            Token quantity
-            @_nonce             Transaction count
+            @spender    Address of authorised party
+            @amount     Token quantity
+            @nonce      Transaction count
         */
-        require( msg.sender != _spender );
-        require( db.balanceOf(msg.sender) >= _amount );
-        require( db.setAllowance(msg.sender, _spender, _amount, _nonce) );
-        Approval(msg.sender, _spender, _amount);
+        require( msg.sender != spender );
+        require( db.balanceOf(msg.sender) >= amount );
+        require( db.setAllowance(msg.sender, spender, amount, nonce) );
+        Approval(msg.sender, spender, amount);
     }
     
-    function allowance(address _owner, address _spender) constant returns (uint256 remaining, uint256 nonce) {
+    function allowance(address owner, address spender) constant returns (uint256 remaining, uint256 nonce) {
         /*
             Get the quantity of tokens given to be used
             
-            @_owner        Authorising address
-            @_spender      Authorised address
+            @owner          Authorising address
+            @spender        Authorised address
             
-            @remaining     Tokens to be spent
-            @nonce         Transaction count
+            @remaining      Tokens to be spent
+            @nonce          Transaction count
         */
-        var (_success, _remaining, _nonce) = db.getAllowance(_owner, _spender);
+        var (_success, _remaining, _nonce) = db.getAllowance(owner, spender);
         require( _success );
         return (_remaining, _nonce);
     }
     
     /**
-     * @notice Send `_amount` Corion tokens to `_to` from `msg.sender`
-     * @param _to The address of the recipient
-     * @param _amount The amount of tokens to be transferred
+     * @notice Send `amount` Corion tokens to `to` from `msg.sender`
+     * @param to The address of the recipient
+     * @param amount The amount of tokens to be transferred
      * @return Whether the transfer was successful or not
      */
-    function transfer(address _to, uint256 _amount) isReady external returns (bool) {
+    function transfer(address to, uint256 amount) isReady external returns (bool success) {
         /*
             Launch a transaction where the token is sent from the sender’s address to the receiver’s address.
             Transaction fee is going to be added as well.
             If the receiver is not a natural address but also a person then she/he will be invited as well.
             
-            @_to        For who
-            @_amount    Amount
+            @to         For who
+            @amount     Amount
             
-            @bool       Was the function successful?
+            @success    Was the function successful?
         */
-        bytes memory data;
-        if ( isContract(_to) ) {
-            transferToContract(msg.sender, _to, _amount, data);
+        bytes memory _data;
+        if ( isContract(to) ) {
+            transferToContract(msg.sender, to, amount, _data);
         } else {
-            transfer_(msg.sender, _to, _amount);
+            _transfer(msg.sender, to, amount);
         }
-        Transfer(msg.sender, _to, _amount, data);
+        Transfer(msg.sender, to, amount, _data);
         return true;
     }
     
     /**
-     * @notice Send `_amount` tokens to `_to` from `_from` on the condition it is approved by `_from`
-     * @param _from The address holding the tokens being transferred
-     * @param _to The address of the recipient
-     * @param _amount The amount of tokens to be transferred
+     * @notice Send `amount` tokens to `to` from `from` on the condition it is approved by `from`
+     * @param from The address holding the tokens being transferred
+     * @param to The address of the recipient
+     * @param amount The amount of tokens to be transferred
      * @return True if the transfer was successful
      */
-    function transferFrom(address _from, address _to, uint256 _amount) isReady external returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) isReady external returns (bool success) {
         /*
             Launch a transaction where we transfer from a given address to another one. It can only be called by an address which was allowed before.
             Transaction fee will be charged too.
             If the receiver is not a natural address but also a person then she/he will be invited as well
             
-            @_from      From who?
-            @_to        For who?
-            @_amount    Amount
+            @from       From who?
+            @to         For who?
+            @amount     Amount
             
-            @bool       If the function was successful.
+            @success    If the function was successful.
         */
-        if ( _from != msg.sender ) {
-            var (_success, _reamining, _nonce) = db.getAllowance(_from, msg.sender);
+        if ( from != msg.sender ) {
+            var (_success, _reamining, _nonce) = db.getAllowance(from, msg.sender);
             require( _success );
-            _reamining = safeSub(_reamining, _amount);
+            _reamining = safeSub(_reamining, amount);
             _nonce = safeAdd(_nonce, 1);
-            require( db.setAllowance(_from, msg.sender, _reamining, _nonce) );
-            AllowanceUsed(msg.sender, _from, _amount);
+            require( db.setAllowance(from, msg.sender, _reamining, _nonce) );
+            AllowanceUsed(msg.sender, from, amount);
         }
-        bytes memory data;
-        if ( isContract(_to) ) {
-            transferToContract(_from, _to, _amount, data);
+        bytes memory _data;
+        if ( isContract(to) ) {
+            transferToContract(from, to, amount, _data);
         } else {
-            transfer_( _from, _to, _amount);
+            _transfer( from, to, amount);
         }
-        Transfer(_from, _to, _amount, data);
+        Transfer(from, to, amount, _data);
         return true;
     }
     
     /**
-     * @notice Send `_amount` Corion tokens to `_to` from `msg.sender` and notify the receiver from your transaction with your `_extraData` data
-     * @param _to The contract address of the recipient
-     * @param _amount The amount of tokens to be transferred
-     * @param _extraData Data to give forward to the receiver
+     * @notice Send `amount` Corion tokens to `to` from `msg.sender` and notify the receiver from your transaction with your `extraData` data
+     * @param to The contract address of the recipient
+     * @param amount The amount of tokens to be transferred
+     * @param extraData Data to give forward to the receiver
      * @return Whether the transfer was successful or not
      */
-    function transfer(address _to, uint256 _amount, bytes _extraData) isReady external returns (bool) {
+    function transfer(address to, uint256 amount, bytes extraData) isReady external returns (bool success) {
         /*
             Launch a transaction where we transfer from a given address to another one.
             After thetransaction the approvedCorionPremiumToken function of the receiver’s address is going to be called with the given data.
             
-            @_to         For who?
-            @_amount     Amount
-            @_extraData  Extra data that will be given to the receiver
+            @to         For who?
+            @amount     Amount
+            @extraData  Extra data that will be given to the receiver
             
-            @bool        If the function was successful.
+            @success    If the function was successful.
         */
-        if ( isContract(_to) ) {
-            transferToContract(msg.sender, _to, _amount, _extraData);
+        if ( isContract(to) ) {
+            transferToContract(msg.sender, to, amount, extraData);
         } else {
-            transfer_( msg.sender, _to, _amount);
+            _transfer( msg.sender, to, amount);
         }
-        Transfer(msg.sender, _to, _amount, _extraData);
+        Transfer(msg.sender, to, amount, extraData);
         return true;
     }
     
-    function transferToContract(address _from, address _to, uint256 _amount, bytes _extraData) internal {
+    function transferToContract(address from, address to, uint256 amount, bytes extraData) internal {
         /*
             Inner function in order to transact a contract.
             
-            @_to            For who?
-            @_amount        Amount
-            @_extraData     Extra data that will be given to the receiver
+            @to             For who?
+            @amount         Amount
+            @extraData      Extra data that will be given to the receiver
         */
-        transfer_(_from, _to, _amount);
-        var (success, back) = thirdPartyPContractAbstract(_to).receiveCorionPremiumToken(_from, _amount, _extraData);
-        require( success );
-        require( _amount > back );
-        if ( back > 0 ) {
-            transfer_(_to, _from, back);
+        _transfer(from, to, amount);
+        var (_success, _back) = thirdPartyPContractAbstract(to).receiveCorionPremiumToken(from, amount, extraData);
+        require( _success );
+        require( amount > _back );
+        if ( _back > 0 ) {
+            _transfer(to, from, _back);
         }
     }
     
-    function transfer_(address _from, address _to, uint256 _amount) isReady internal {
+    function _transfer(address from, address to, uint256 amount) isReady internal {
         /*
-            Inner function to launch a transaction. The token has been moved so we cherge for the transaction fee as well.
-            During the ICO transactions are only possible from the genesis address
-            After the transaction the event will be sent to the moduleHandlernek where it is going to be broadcast.
+            Inner function to launch a transaction.
+            During the ICO transactions are only possible from the genesis address.
+            0xa636a97578d26a3b76b060bbc18226d954cf3757 address is blacklisted.
             
-            @_from      From how?
-            @_to        For who?
-            @_amount    Amount
-            @_fee       Whether to be charged or not charged with the transaction fee.
+            @from      From how?
+            @to        For who?
+            @amount    Amount
         */
-        require( _from != 0x00 && _to != 0x00 && _to != 0xa636a97578d26a3b76b060bbc18226d954cf3757 );
-        require( ( ! isICO) || genesis[_from] );
-        require( db.decrease(_from, _amount) );
-        require( db.increase(_to, _amount) );
+        require( from != 0x00 && to != 0x00 && to != 0xa636a97578d26a3b76b060bbc18226d954cf3757 );
+        require( ( ! isICO) || genesis[from] );
+        require( db.decrease(from, amount) );
+        require( db.increase(to, amount) );
     }
     
-    function mint(address _owner, uint256 _value) external returns (bool) {
+    function mint(address owner, uint256 value) external returns (bool success) {
         /*
-            Generating tokens. It can be called only by ICO contract or the moduleHandler.
+            Generating tokens. It can be called only by ICO contract.
             
-            @_owner     address
-            @_value     amount.
+            @owner      Address
+            @value      Amount.
             
-            @bool       Was the Function successful?
+            @success    Was the Function successful?
         */
         require( msg.sender == icoAddr || isICO );
-        mint_(_owner, _value);
+        _mint(owner, value);
         return true;
     }
     
-    function mint_(address _owner, uint256 _value) isReady internal {
+    function _mint(address owner, uint256 value) isReady internal {
         /*
             Inner function to create a token.
             
-            @_owner     Address of crediting the token.
-            @_value     Amount
+            @owner     Address of crediting the token.
+            @value     Amount
         */
-        require( db.increase(_owner, _value) );
-        Mint(_owner, _value);
+        require( db.increase(owner, value) );
+        Mint(owner, value);
     }
     
-    function isContract(address addr) internal returns (bool) {
+    function isContract(address addr) internal returns (bool success) {
         /*
             Inner function in order to check if the given address is a natural address or a contract.
             
             @addr       The address which is needed to be checked.
             
-            @bool       Is the address crontact or not
+            @success    Is the address crontact or not
         */
-        uint codeLength;
+        uint256 _codeLength;
         assembly {
-            codeLength := extcodesize(addr)
+            _codeLength := extcodesize(addr)
         }
-        return codeLength > 0;
+        return _codeLength > 0;
     }
     
-    function balanceOf(address _owner) constant returns (uint256 _value) {
+    function balanceOf(address owner) constant returns (uint256 value) {
         /*
             Token balance query
             
-            @_owner     address
-            @_value     balance of address
+            @owner      Address
+            @value      Balance of address
         */
-        return db.balanceOf(_owner);
+        return db.balanceOf(owner);
     }
     
-    function totalSupply() constant returns (uint256 _value) {
+    function totalSupply() constant returns (uint256 value) {
         /*
             Total token quantity query
             
-            @_value     Total token quantity
+            @value      Total token quantity
         */
         return db.totalSupply();
     }
