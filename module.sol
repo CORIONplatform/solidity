@@ -21,7 +21,7 @@ contract module {
     uint256 private disabledUntil;
     address private moduleHandlerAddress;
     
-    function _connectModule() internal returns (bool) {
+    function _connectModule() internal returns (bool success) {
         /*
             Registering and/or connecting-to ModuleHandler
             
@@ -34,7 +34,7 @@ contract module {
         moduleHandlerAddress = msg.sender;
         return true;
     }
-    function _registerModuleHandler(address addr) internal returns(bool) {
+    function _registerModuleHandler(address addr) internal returns(bool success) {
         /*
             Registering ModuleHandler address
             
@@ -44,7 +44,7 @@ contract module {
         moduleHandlerAddress = addr;
         return true;
     }
-    function _disconnectModule() internal returns (bool) {
+    function _disconnectModule() internal returns (bool success) {
         /*
             Disconnect the module from the ModuleHandler
             
@@ -54,7 +54,7 @@ contract module {
         moduleStatus = status.Disconnected;
         return true;
     }
-    function _replaceModule(address addr) internal returns (bool) {
+    function _replaceModule(address addr) internal returns (bool success) {
         /*
             Replace the module for an another new module
             
@@ -73,7 +73,7 @@ contract module {
         moduleStatus = status.Disconnected;
         return true;
     }
-    function _isActive() internal returns (bool) {
+    function _isActive() internal returns (bool success) {
         /*
             Ask for is active the module or not
             
@@ -82,7 +82,7 @@ contract module {
         if ( moduleStatus != status.Connected || block.number < disabledUntil ) { return false; }
         return true;
     }
-    function _disableModule(bool forever) internal returns (bool) {
+    function _disableModule(bool forever) internal returns (bool success) {
         /*
             Disable the module for one week, if the forever true then for forever.
             
