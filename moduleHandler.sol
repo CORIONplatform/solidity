@@ -66,6 +66,10 @@ contract moduleHandler is owned, announcementTypes {
             @call   Is connect to the module or not.
         */
         if ( call ) { require( abstractModule(input.addr).connectModule() ); }
+        var (id, found) = searchModuleByAddress(input.addr);
+        require( ! found );
+        var (id, found) = getModuleAddressByName(input.name);
+        require( ! found );
         var (id, found) = searchModuleByAddress(0x0);
         if ( ! found ) {
             id = modules.length;
