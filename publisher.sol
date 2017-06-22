@@ -9,30 +9,30 @@ contract publisher is announcementTypes, module, safeMath {
     /*
         module callbacks
     */
-    function connectModule() external returns (bool) {
+    function connectModule() external returns (bool success) {
         require( super._connectModule() );
         return true;
     }
-    function disconnectModule() external returns (bool) {
+    function disconnectModule() external returns (bool success) {
         require( super._disconnectModule() );
         return true;
     }
-    function replaceModule(address addr) external returns (bool) {
+    function replaceModule(address addr) external returns (bool success) {
         require( super._replaceModule(addr) );
         return true;
     }
-    function disableModule(bool forever) external returns (bool) {
+    function disableModule(bool forever) external returns (bool success) {
         require( super._disableModule(forever) );
         return true;
     }
-    function isActive() public constant returns (bool) {
+    function isActive() public constant returns (bool success) {
         return super._isActive();
     }
-    function replaceModuleHandler(address newHandler) external returns (bool) {
+    function replaceModuleHandler(address newHandler) external returns (bool success) {
         require( super._replaceModuleHandler(newHandler) );
         return true;
     }
-    function transferEvent(address from, address to, uint256 value) external returns (bool) {
+    function transferEvent(address from, address to, uint256 value) external returns (bool success) {
         /*
             Transaction completed. This function is available only for moduleHandler
             If a transaction is carried out from or to an address which participated in the objection of an announcement, its objection purport is automatically set
@@ -69,7 +69,7 @@ contract publisher is announcementTypes, module, safeMath {
     uint8 private oppositeRate = 33;
     address private owner = msg.sender;
     
-    struct _announcements {
+    struct announcements_s {
         announcementType Type;
         uint256 start;
         uint256 end;
@@ -84,20 +84,21 @@ contract publisher is announcementTypes, module, safeMath {
         uint256 _uint;
         address _addr;
     }
-    _announcements[] private announcements;
+    announcements_s[] private announcements;
     
-    struct _opponents {
+    struct opponents_s {
         uint256[] announcements;
         uint256 weight;
     }
-    mapping (address => _opponents) opponents;
+    mapping (address => opponents_s) opponents;
     
-    function publisher(address _moduleHandler) {
+    function publisher(address moduleHandler) {
         /*
-            Installation function.  The installer will be registered in the admin list automatically        
-            @_moduleHandler     address of moduleHandler
+            Installation function.  The installer will be registered in the admin list automatically
+            
+            @moduleHandler      Address of moduleHandler
         */
-        require( super._registerModuleHandler(_moduleHandler) );
+        require( super._registerModuleHandler(moduleHandler) );
         admins[msg.sender] = true;
     }
     
@@ -105,15 +106,16 @@ contract publisher is announcementTypes, module, safeMath {
         /*
             Add Admin 
             
-            @addr       new admin address.
+            @addr       New admin address.
         */
         admins[addr] = true;
     }
 
     function delAdmin(address addr) onlyOwner external {
         /*
-            Remove Admin             
-            @addr       address of admin to remove.
+            Remove Admin
+            
+            @addr       Address of admin to remove.
         */
         delete admins[addr];
     }
@@ -122,17 +124,18 @@ contract publisher is announcementTypes, module, safeMath {
         /*
             Announcement data query
             
-            @id             its identification
-            @Type           subject of announcement
-            @Start          height of announcement block
-            @End            planned completion of announcement
+            @id             Its identification
+            
+            @Type           Subject of announcement
+            @Start          Height of announcement block
+            @End            Planned completion of announcement
             @Closed         Closed or not
             @Announcement   Announcement text
-            @Link           link  perhaps to a Forum 
+            @Link           Link  perhaps to a Forum 
             @Opposited      Objected or not
-            @_str           text box
-            @_uint          number box
-            @_addr          address box
+            @_str           Text value
+            @_uint          Number value
+            @_addr          Address value
         */
         Type = uint256(announcements[id].Type);
         Start = announcements[id].start;
@@ -148,18 +151,19 @@ contract publisher is announcementTypes, module, safeMath {
         _addr = announcements[id]._addr;
     }
     
-    function checkOpposited(uint256 weight, bool oppositable) internal returns (bool) {
+    function checkOpposited(uint256 weight, bool oppositable) internal returns (bool success) {
         /*
-            veto check
+            Veto check
             
-            @weight         purport of objections so far
-            @oppositable    opposable at all
-            @bool           Opposed or not
+            @weight         Purport of objections so far
+            @oppositable    Opposable at all
+            
+            @success        Opposed or not
         */
         if ( ! oppositable ) { return false; }
-        var (a, b) = moduleHandler(super._getModuleHandlerAddress()).totalSupply();
-        require( b );
-        return a * oppositeRate / 100 > weight;
+        var (_success, _amount) = moduleHandler(super._getModuleHandlerAddress()).totalSupply();
+        require( _success );
+        return _amount * oppositeRate / 100 > weight;
     }
     
     function newAnnouncement(announcementType Type, string Announcement, string Link, bool Oppositable, string _str, uint256 _uint, address _addr) isReady onlyAdmin external {
@@ -177,24 +181,24 @@ contract publisher is announcementTypes, module, safeMath {
             @_uint          number box
             @_addr          address box
         */
-        _announcements memory tmpAnnouncement;
-        tmpAnnouncement.Type = Type;
-        tmpAnnouncement.start = block.number;
+        announcements_s memory _tmpAnnouncement;
+        _tmpAnnouncement.Type = Type;
+        _tmpAnnouncement.start = block.number;
         if ( checkICO() ) {
-            tmpAnnouncement.end = block.number + minAnnouncementDelayOnICO;
+            _tmpAnnouncement.end = block.number + minAnnouncementDelayOnICO;
         } else {
-            tmpAnnouncement.end = block.number + minAnnouncementDelay;
+            _tmpAnnouncement.end = block.number + minAnnouncementDelay;
         }
-        tmpAnnouncement.open = true;
-        tmpAnnouncement.announcement = Announcement;
-        tmpAnnouncement.link = Link;
-        tmpAnnouncement.oppositable = Oppositable;
-        tmpAnnouncement.oppositionWeight = 0;
-        tmpAnnouncement.result = false;
-        tmpAnnouncement._str = _str;
-        tmpAnnouncement._uint = _uint;
-        tmpAnnouncement._addr = _addr;
-        ENewAnnouncement(announcements.push(tmpAnnouncement), Type);
+        _tmpAnnouncement.open = true;
+        _tmpAnnouncement.announcement = Announcement;
+        _tmpAnnouncement.link = Link;
+        _tmpAnnouncement.oppositable = Oppositable;
+        _tmpAnnouncement.oppositionWeight = 0;
+        _tmpAnnouncement.result = false;
+        _tmpAnnouncement._str = _str;
+        _tmpAnnouncement._uint = _uint;
+        _tmpAnnouncement._addr = _addr;
+        ENewAnnouncement(announcements.push(_tmpAnnouncement), Type);
     }
     
     function closeAnnouncement(uint256 id) isReady onlyAdmin external {
@@ -262,17 +266,18 @@ contract publisher is announcementTypes, module, safeMath {
         for ( uint256 a=0 ; a<opponents[msg.sender].announcements.length ; a++ ) {
                require( opponents[msg.sender].announcements[a] != id );
         }
-        var (bal, s) = moduleHandler(super._getModuleHandlerAddress()).balanceOf(msg.sender);
-        require( s );
-        require( bal > 0);
-        opponents[msg.sender].weight = bal;
-        announcements[id].oppositionWeight += bal;
-        EOppositeAnnouncement(id, msg.sender, bal);
+        var (_success, _balance) = moduleHandler(super._getModuleHandlerAddress()).balanceOf(msg.sender);
+        require( _success );
+        require( _balance > 0);
+        opponents[msg.sender].weight = _balance;
+        announcements[id].oppositionWeight += _balance;
+        EOppositeAnnouncement(id, msg.sender, _balance);
     }
     
     function invalidateAnnouncement(uint256 id) isReady onlyAdmin external {
         /*
-            Withdraw announcement. Only those in the admin list can withdraw it.            
+            Withdraw announcement. Only those in the admin list can withdraw it.
+            
             @id     Announcement identification
         */
         require( announcements[id].open );
@@ -295,14 +300,14 @@ contract publisher is announcementTypes, module, safeMath {
         require( owner == msg.sender ); _;
     }
     
-    function checkICO() internal returns (bool) {
+    function checkICO() internal returns (bool isICO) {
         /*
             Inner function to check the ICO status.
             @bool       Is the ICO in proccess or not?
         */
-        var (a, b) = moduleHandler(super._getModuleHandlerAddress()).isICO();
-        require( b );
-        return a;
+        var (_success, _isICO) = moduleHandler(super._getModuleHandlerAddress()).isICO();
+        require( _success );
+        return _isICO;
     }
     
     event ENewAnnouncement(uint256 id, announcementType typ);
