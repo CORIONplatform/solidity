@@ -559,26 +559,28 @@ contract schelling is module, announcementTypes, schellingVars {
         return false;
     }
     
-    function getTotalSupply() internal returns (uint256) {
+    function getTotalSupply() internal returns (uint256 amount) {
         /*
             Inside function for querying the whole amount of the tokens.
             
             @uint256        Whole token amount
         */
-        var (a, b) = moduleHandler(super._getModuleHandlerAddress()).totalSupply();
-        require( b );
-        return a;
+        var (_success, _amount) = moduleHandler(super._getModuleHandlerAddress()).totalSupply();
+        require( _success );
+        return _amount;
     }
     
-    function getTokenBalance(address addr) internal returns (uint256) {
+    function getTokenBalance(address addr) internal returns (uint256 balance) {
         /*
             Inner function in order to poll the token balance of the address.
+            
             @addr       Address
-            @uint256    Balance of the address.
+            
+            @balance    Balance of the address.
         */
-        var (a, b) = moduleHandler(super._getModuleHandlerAddress()).balanceOf(addr);
-        require( b );
-        return a;
+        var (_success, _balance) = moduleHandler(super._getModuleHandlerAddress()).balanceOf(addr);
+        require( _success );
+        return _balance;
     }
     
     modifier noContract {
