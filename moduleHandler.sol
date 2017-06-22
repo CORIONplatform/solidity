@@ -275,7 +275,7 @@ contract moduleHandler is owned, announcementTypes {
         require( _success && _found );
         return (true, token(modules[_id].addr).isICO());
     }
-    function getCurrentSchellingRoundID() public constant returns (uint256 round, bool success) {
+    function getCurrentSchellingRoundID() public constant returns (bool success, uint256 round) {
         /*
             Query of number of the actual Schelling round.
             
@@ -284,7 +284,7 @@ contract moduleHandler is owned, announcementTypes {
         */
         var (_success, _found, _id) = getModuleIDByName('Schelling');
         require( _success && _found );
-        return (schelling(modules[_id].addr).getCurrentSchellingRoundID(), true);
+        return (true, schelling(modules[_id].addr).getCurrentSchellingRoundID());
     }
     function mint(address to, uint256 value) external returns (bool success) {
         /*
