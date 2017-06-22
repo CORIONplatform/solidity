@@ -35,7 +35,6 @@ contract ico is safeMath {
     address private foundationAddress;
     address private icoEtcPriceAddr;
     uint256 public icoExchangeRate;
-    uint256 private icoExchangePrevRate;
     uint256 private icoExchangeRateSetBlock;
     uint256 constant icoExchangeRateM = 1e4;
     uint256 private interestOnICO   = 25;
@@ -64,7 +63,7 @@ contract ico is safeMath {
         */
         foundationAddress = foundation;
         icoExchangeRate = exchangeRate;
-        icoExchangePrevRate = icoExchangeRate;
+        icoExchangeRateSetBlock = block.number + interestBlockDelay;
         icoEtcPriceAddr = priceSet;
         owner = msg.sender;
         if ( startBlockNum > 0 ) {
@@ -207,8 +206,7 @@ contract ico is safeMath {
         require( icoEtcPriceAddr == msg.sender );
         require( icoExchangeRateSetBlock < block.number);
         icoExchangeRateSetBlock = block.number + exchangeRateDelay;
-        icoExchangeRate = icoExchangePrevRate;
-        icoExchangePrevRate = value;
+        icoExchangeRate = value;
     }
     
     function extendICO() external {
