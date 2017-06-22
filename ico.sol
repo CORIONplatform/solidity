@@ -181,9 +181,9 @@ contract ico is safeMath {
                     _lastBal = _idb.amount;
                 }
             }
-            if ( _idb._empty ) {
+            if ( _idb.empty ) {
                 _lastBal = 0;
-                _empty = _idb._empty;
+                _empty = _idb.empty;
             }
             _lastBal += _tamount;
             _tamount = _lastBal * interestOnICO / interestOnICOM / 100;
