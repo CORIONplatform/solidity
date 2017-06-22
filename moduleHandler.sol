@@ -241,7 +241,7 @@ contract moduleHandler is owned, announcementTypes {
         }
         return true;
     }
-    function balanceOf(address owner) public constant returns (uint256 value, bool success) {
+    function balanceOf(address owner) public constant returns (bool success, uint256 value) {
         /*
             Query of token balance.
             
@@ -251,9 +251,9 @@ contract moduleHandler is owned, announcementTypes {
         */
         var (_success, _found, _id) = getModuleIDByName('Token');
         require( _success && _found );
-        return (token(modules[_id].addr).balanceOf(owner), true);
+        return (true, token(modules[_id].addr).balanceOf(owner));
     }
-    function totalSupply() public constant returns (uint256 value, bool success) {
+    function totalSupply() public constant returns (bool success, uint256 value) {
         /*
             Query of the whole token amount.
             
@@ -262,9 +262,9 @@ contract moduleHandler is owned, announcementTypes {
         */
         var (_success, _found, _id) = getModuleIDByName('Token');
         require( _success && _found );
-        return (token(modules[_id].addr).totalSupply(), true);
+        return (true, token(modules[_id].addr).totalSupply());
     }
-    function isICO() public constant returns (bool ico, bool success) {
+    function isICO() public constant returns (bool success, bool ico) {
         /*
             Query of ICO state
             
@@ -273,7 +273,7 @@ contract moduleHandler is owned, announcementTypes {
         */
         var (_success, _found, _id) = getModuleIDByName('Token');
         require( _success && _found );
-        return (token(modules[_id].addr).isICO(), true);
+        return (true, token(modules[_id].addr).isICO());
     }
     function getCurrentSchellingRoundID() public constant returns (uint256 round, bool success) {
         /*
@@ -292,6 +292,7 @@ contract moduleHandler is owned, announcementTypes {
             
             @to         Place of new token
             @value      Token amount
+            
             @success    Was the function successfull?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
