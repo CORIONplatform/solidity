@@ -11,8 +11,8 @@ contract provider is module, safeMath, announcementTypes {
     */
     function connectModule() external returns (bool) {
         require( super._connectModule() );
-        var (currentSchellingRound, s) = moduleHandler(super._getModuleHandlerAddress()).getCurrentSchellingRoundID();
-        require( s );
+        var (_success, currentSchellingRound) = moduleHandler(super._getModuleHandlerAddress()).getCurrentSchellingRoundID();
+        require( _success );
         return true;
     }
     function disconnectModule() external returns (bool) {
