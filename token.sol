@@ -1,531 +1,385 @@
 pragma solidity ^0.4.11;
 
-import "announcementTypes.sol";
 import "safeMath.sol";
-import "module.sol";
+import "token.sol";
+import "premium.sol";
 import "moduleHandler.sol";
-import "tokenDB.sol";
 
-contract thirdPartyContractAbstract {
-    function receiveCorionToken(address, uint256, bytes) external returns (bool, uint256) {}
-    function approvedCorionToken(address, uint256, bytes) external returns (bool) {}
-}
-
-contract token is safeMath, module, announcementTypes {
-    /*
-        module callbacks
-    */
-    function connectModule() external returns (bool success) {
-        require( super._connectModule() );
-        return true;
-    }
-    function disconnectModule() external returns (bool success) {
-        require( super._disconnectModule() );
-        return true;
-    }
-    function replaceModule(address addr) external returns (bool success) {
-        require( db.replaceOwner(addr) );
-        require( super._replaceModule(addr) );
-        return true;
-    }
-    function disableModule(bool forever) external returns (bool success) {
-        require( super._disableModule(forever) );
-        return true;
-    }
-    function isActive() public constant returns (bool success) {
-        return super._isActive();
-    }
-    function replaceModuleHandler(address newHandler) external returns (bool success) {
-        require( super._replaceModuleHandler(newHandler) );
-        return true;
-    }
-    modifier isReady { require( super._isActive() ); _; }
-    /**
-    *
-    * @title Corion Platform Token
-    * @author iFA @ Corion Platform
-    *
-    */
-    string public name = "Corion";
-    string public symbol = "COR";
-    uint8 public decimals = 6;
+contract ico is safeMath {
     
-    tokenDB private db;
-    address public icoAddr;
-    uint256 private transactionFeeRate      = 20;
-    uint256 private transactionFeeRateM     = 1e3;
-    uint256 private transactionFeeMin       =   20000;
-    uint256 private transactionFeeMax       = 5000000;
-    uint256 private transactionFeeBurn      = 80;
-    address private exchangeAddress;
-    bool    public  isICO                   = true;
+    struct icoLevels_s {
+        uint256 block;
+        uint8 rate;
+    }
+    struct affiliate_s {
+        uint256 weight;
+        uint256 paid;
+    }
+    struct interest_s {
+        uint256 amount;
+        bool empty;
+    }
+    struct brought_s {
+        uint256 eth;
+        uint256 cor;
+        uint256 corp;
+    }
     
-    mapping(address => bool) private genesis;
+    uint256 private constant oneSegment = 40320;
     
-    function token(bool forReplace, address moduleHandler, address dbAddr, address icoContractAddr, address exchangeContractAddress, address[] genesisAddr, uint256[] genesisValue) payable {
+    address private owner;
+    address private tokenAddr;
+    address private premiumAddr;
+    uint256 public startBlock;
+    uint256 public icoDelay;
+    address private foundationAddress;
+    address private icoEtcPriceAddr;
+    uint256 public icoExchangeRate;
+    uint256 private icoExchangeRateSetBlock;
+    uint256 constant icoExchangeRateM = 1e4;
+    uint256 private interestOnICO   = 25;
+    uint256 private interestOnICOM  = 1e3;
+    uint256 private interestBlockDelay = 720;
+    uint256 private constant exchangeRateDelay = 125;
+    bool public aborted;
+    bool public closed;
+    icoLevels_s[] private icoLevels;
+    mapping (address => affiliate_s) private affiliate;
+    mapping (address => brought_s) private brought;
+    mapping (address => mapping(uint256 => interest_s)) private interestDB;
+    uint256 private totalMint;
+    uint256 private totalPremiumMint;
+    
+    function ico(address foundation, address priceSet, uint256 exchangeRate, uint256 startBlockNum, address[] genesisAddr, uint256[] genesisValue) {
         /*
-            Installation function
+            Installation function.
             
-            When _icoAddr is defined, 0.2 ether has to be attached  as many times  as many genesis addresses are given
-            
-            @forReplace                 This address will be replaced with the old one or not.
-            @moduleHandler              Modulhandler's address
-            @dbAddr                     Address of database
-            @icoContractAddr            Address of ICO contract
-            @exchangeContractAddress    Address of Market in order to buy gas during ICO
-            @genesisAddr                Array of Genesis addresses
-            @genesisValue               Array of balance of genesis addresses
+            @foundation     The ETC address of the foundation
+            @priceSet       The address which will be able to make changes on the rate later on.
+            @exchangeRate   The current ETC/USD rate multiplied by 1e4. For example: 2.5 USD/ETC = 25000
+            @startBlockNum  The height (level) of the beginning of the ICO. If it is 0 then it will be the current array’s height.
+            @genesisAddr    Array of Genesis addresses
+            @genesisValue   Array of balance of genesis addresses
         */
-        require( super._registerModuleHandler(moduleHandler) );
-        require( dbAddr != 0x00 );
-        require( icoContractAddr != 0x00 );
-        require( exchangeContractAddress != 0x00 );
-        db = tokenDB(dbAddr);
-        icoAddr = icoContractAddr;
-        exchangeAddress = exchangeContractAddress;
-        isICO = ! forReplace;
-        if ( ! forReplace ) {
-            require( db.replaceOwner(this) );
-            assert( genesisAddr.length == genesisValue.length );
-            require( this.balance >= genesisAddr.length * 0.2 ether );
-            for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
-                genesis[genesisAddr[a]] = true;
-                require( db.increase(genesisAddr[a], genesisValue[a]) );
-                if ( ! genesisAddr[a].send(0.2 ether) ) {}
-                Mint(genesisAddr[a], genesisValue[a]);
+        foundationAddress = foundation;
+        icoExchangeRate = exchangeRate;
+        icoExchangeRateSetBlock = block.number + interestBlockDelay;
+        icoEtcPriceAddr = priceSet;
+        owner = msg.sender;
+        if ( startBlockNum > 0 ) {
+            require( startBlockNum >= block.number );
+            startBlock = startBlockNum;
+        } else {
+            startBlock = block.number;
+        }
+        icoLevels.push(icoLevels_s(startBlock + oneSegment * 4, 103));
+        icoLevels.push(icoLevels_s(startBlock + oneSegment * 3, 105));
+        icoLevels.push(icoLevels_s(startBlock + oneSegment * 2, 110));
+        icoLevels.push(icoLevels_s(startBlock + oneSegment * 1, 115));
+        icoLevels.push(icoLevels_s(startBlock + oneSegment / 7, 120));
+        icoLevels.push(icoLevels_s(startBlock, 125));
+        icoDelay = startBlock + oneSegment * 5;
+        for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
+            interestDB[genesisAddr[a]][0].amount = genesisValue[a];
+        }
+    }
+    
+    function ICObonus() public constant returns(uint256 bonus) {
+        /*
+            Query of current bonus
+            
+            @bonus  Bonus %
+        */
+        for ( uint8 a=0 ; a<icoLevels.length ; a++ ) {
+            if ( block.number > icoLevels[a].block ) {
+                return icoLevels[a].rate - 100;
             }
         }
     }
     
-    function closeIco() external returns (bool success) {
+    function setInterestDB(address addr, uint256 balance) external returns(bool success) {
         /*
-            ICO finished. It can be called only by ICO contract
+            Setting interest database. It can be requested by Token contract only.
+            A database has to be built in order  that after ICO closed everybody can get their compound interest on their capital accumulated 
             
-            @success    Was the Function successful?
+            @addr       Sender
+            @balance    Quantity
+            
+            @success    Was the process successful or not
         */
-        require( msg.sender == icoAddr );
-        isICO = false;
+        require( msg.sender == tokenAddr );
+        uint256 _num = (block.number - startBlock) / interestBlockDelay;
+        interestDB[addr][_num].amount = balance;
+        if ( balance == 0 ) { 
+            interestDB[addr][_num].empty = true;
+        }
         return true;
     }
     
-    /**
-     * @notice `msg.sender` approves `spender` to spend `amount` tokens on its behalf.
-     * @param spender The address of the account able to transfer the tokens
-     * @param amount The amount of tokens to be approved for transfer
-     * @param nonce The transaction count of the authorised address
-     * @return True if the approval was successful
-     */
-    function approve(address spender, uint256 amount, uint256 nonce) isReady external returns (bool success) {
+    function checkInterest(address addr) public constant returns(uint256 amount) {
         /*
-            Authorise another address to use a certain quantity of the authorising owner’s balance
-         
-            @spender            Address of authorised party
-            @amount             Token quantity
-            @nonce              Transaction count
+            Query of compound interest
             
-            @success            Was the Function successful?
+            @addr       Address
+            
+            @amount     Amount of compound interest
         */
-        _approve(spender, amount, nonce);
-        return true;
-    }
-    
-    /**
-     * @notice `msg.sender` approves `spender` to spend `amount` tokens on its behalf and notify the spender from your approve with your `extraData` data.
-     * @param spender The address of the account able to transfer the tokens
-     * @param amount The amount of tokens to be approved for transfer
-     * @param nonce The transaction count of the authorised address
-     * @param extraData Data to give forward to the receiver
-     * @return True if the approval was successful
-     */
-    function approveAndCall(address spender, uint256 amount, uint256 nonce, bytes extraData) isReady external returns (bool success) {
-        /*
-            Authorise another address to use a certain quantity of the authorising  owner’s balance
-            Following the transaction the receiver address `approvedCorionToken` function is called by the given data
-            
-            @spender            Authorized address
-            @amount             Token quantity
-            @extraData          Extra data to be received by the receiver
-            @nonce              Transaction count
-            
-            @success            Was the Function successful?
-        */
-        _approve(spender, amount, nonce);
-        require( thirdPartyContractAbstract(spender).approvedCorionToken(msg.sender, amount, extraData) );
-        return true;
-    }
-    
-    function _approve(address spender, uint256 amount, uint256 nonce) internal {
-        /*
-            Internal Function to authorise another address to use a certain quantity of the authorising owner’s balance.
-            If the transaction count not match the authorise fails.
-            
-            @spender           Address of authorised party
-            @amount            Token quantity
-            @nonce             Transaction count
-        */
-        require( msg.sender != spender );
-        require( db.balanceOf(msg.sender) >= amount );
-        require( db.setAllowance(msg.sender, spender, amount, nonce) );
-        Approval(msg.sender, spender, amount);
-    }
-    
-    function allowance(address owner, address spender) constant returns (uint256 remaining, uint256 nonce) {
-        /*
-            Get the quantity of tokens given to be used
-            
-            @owner         Authorising address
-            @spender       Authorised address
-            
-            @remaining     Tokens to be spent
-            @nonce         Transaction count
-        */
-        var (_success, _remaining, _nonce) = db.getAllowance(owner, spender);
-        require( _success );
-        return (_remaining, _nonce);
-    }
-    
-    /**
-     * @notice Send `amount` Corion tokens to `to` from `msg.sender`
-     * @param to The address of the recipient
-     * @param amount The amount of tokens to be transferred
-     * @return Whether the transfer was successful or not
-     */
-    function transfer(address to, uint256 amount) isReady external returns (bool success) {
-        /*
-            Start transaction, token is sent from caller’s address to receiver’s address
-            Transaction fee is to be deducted.
-            If receiver is not a natural address but a person, he will be called
-          
-            @to         To who
-            @amount     Quantity
-            
-            @success    Was the Function successful?
-        */
-        bytes memory _data;
-        if ( isContract(to) ) {
-            _transferToContract(msg.sender, to, amount, _data);
-        } else {
-            _transfer( msg.sender, to, amount, true);
-        }
-        Transfer(msg.sender, to, amount, _data);
-        return true;
-    }
-    
-    /**
-     * @notice Send `amount` tokens to `to` from `from` on the condition it is approved by `from`
-     * @param from The address holding the tokens being transferred
-     * @param to The address of the recipient
-     * @param amount The amount of tokens to be transferred
-     * @return True if the transfer was successful
-     */
-    function transferFrom(address from, address to, uint256 amount) isReady external returns (bool success) {
-        /*
-            Start transaction to send a quantity from a given address to another address. (approve / allowance). This can be called only by the address approved in advance
-            Transaction fee is to be deducted
-            If receiver is not a natural address but a person, he will be called
-            
-            @from       From who.
-            @to         To who
-            @amount     Quantity
-            
-            @success    Was the Function successful?
-        */
-        if ( from != msg.sender ) {
-            var (_success, _reamining, _nonce) = db.getAllowance(from, msg.sender);
-            require( _success );
-            _reamining = safeSub(_reamining, amount);
-            _nonce = safeAdd(_nonce, 1);
-            require( db.setAllowance(from, msg.sender, _reamining, _nonce) );
-            AllowanceUsed(msg.sender, from, amount);
-        }
-        bytes memory _data;
-        if ( isContract(to) ) {
-            _transferToContract(from, to, amount, _data);
-        } else {
-            _transfer( from, to, amount, true);
-        }
-        Transfer(from, to, amount, _data);
-        return true;
-    }
-    
-    /**
-     * @notice Send `amount` tokens to `to` from `from` on the condition it is approved by `from`
-     * @param from The address holding the tokens being transferred
-     * @param to The address of the recipient
-     * @param amount The amount of tokens to be transferred
-     * @return True if the transfer was successful
-     */
-    function transferFromByModule(address from, address to, uint256 amount, bool fee) isReady external returns (bool success) {
-        /*
-            Start transaction to send a quantity from a given address to another address
-            Only ModuleHandler can call it
-           
-            @from       From who
-            @to         To who.
-            @amount     Quantity
-            @fee        Deduct transaction fee - yes or no?
-            
-            @success    Was the Function successful?
-        */
-        bytes memory _data;
-        require( super._isModuleHandler(msg.sender) );
-        _transfer( from, to, amount, fee);
-        Transfer(from, to, amount, _data);
-        return true;
-    }
-    
-    /**
-     * @notice Send `amount` Corion tokens to `to` from `msg.sender` and notify the receiver from your transaction with your `extraData` data
-     * @param to The contract address of the recipient
-     * @param amount The amount of tokens to be transferred
-     * @param extraData Data to give forward to the receiver
-     * @return Whether the transfer was successful or not
-     */
-    function transfer(address to, uint256 amount, bytes extraData) isReady external returns (bool success) {
-        /*
-            Start transaction to send a quantity from a given address to another address
-            After transaction the function `receiveCorionToken`of the receiver is called  by the given data
-            When sending an amount, it is possible the total amount cannot be processed, the remaining amount is sent back with no fee charged
-            
-            @to             To who.
-            @amount         Quantity
-            @extraData      Extra data the receiver will get
-            
-            @success        Was the Function successful?
-        */
-        if ( isContract(to) ) {
-            _transferToContract(msg.sender, to, amount, extraData);
-        } else {
-            _transfer( msg.sender, to, amount, true);
-        }
-        Transfer(msg.sender, to, amount, extraData);
-        return true;
-    }
-    
-    function _transferToContract(address from, address to, uint256 amount, bytes extraData) internal {
-        /*
-            Internal function to start transactions to a contract
-            
-            @from           From who
-            @to             To who.
-            @amount         Quantity
-            @extraData      Extra data the receiver will get
-        */
-        _transfer(from, to, amount, exchangeAddress == to);
-        var (_success, _back) = thirdPartyContractAbstract(to).receiveCorionToken(from, amount, extraData);
-        require( _success );
-        require( amount > _back );
-        if ( _back > 0 ) {
-            _transfer(to, from, _back, false);
-        }
-        _processTransactionFee(from, amount - _back);
-    }
-    
-    function _transfer(address from, address to, uint256 amount, bool fee) internal {
-        /*
-            Internal function to start transactions. When Tokens are sent, transaction fee is charged
-            During ICO transactions are allowed only from genesis addresses.
-            After sending the tokens, the ModuleHandler is notified and it will broadcast the fact among members 
-            
-            The 0xa636a97578d26a3b76b060bbc18226d954cf3757 address are blacklisted.
-            
-            @from       From who
-            @to         To who
-            @amount     Quantity
-            @fee        Deduct transaction fee - yes or no?
-        */
-        if( fee ) {
-            var (success, _fee) = getTransactionFee(amount);
-            require( success );
-            require( db.balanceOf(from) >= amount + _fee );
-        }
-        require( from != 0x00 && to != 0x00 && to != 0xa636a97578d26a3b76b060bbc18226d954cf3757 );
-        require( ( ! isICO) || genesis[from] );
-        require( db.decrease(from, amount) );
-        require( db.increase(to, amount) );
-        if ( fee ) { _processTransactionFee(from, amount); }
-        if ( isICO ) {
-            require( ico(icoAddr).setInterestDB(from, db.balanceOf(from)) );
-            require( ico(icoAddr).setInterestDB(to, db.balanceOf(to)) );
-        }
-        require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(from, to, amount) );
-    }
-    
-    /**
-     * @notice Transaction fee will be deduced from `owner` for transacting `value`
-     * @param owner The address where will the transaction fee deduced
-     * @param value The base for calculating the fee
-     * @return True if the transfer was successful
-     */
-    function processTransactionFee(address owner, uint256 value) isReady external returns (bool success) {
-        /*
-            Charge transaction fee. It can be called only by moduleHandler  
+        uint256 _lastBal;
+        uint256 _tamount;
+        bool _empty;
+        interest_s memory _idb;
+        uint256 _to = (block.number - startBlock) / interestBlockDelay;
         
-            @owner      From who.
-            @value      Quantity to calculate the fee
-            
-            @success    Was the Function successful?
-        */
-        require( super._isModuleHandler(msg.sender) );
-        _processTransactionFee(owner, value);
-        return true;
-    }
-    
-    function _processTransactionFee(address owner, uint256 value) internal {
-        /*
-            Internal function to charge the transaction fee. A certain quantity is burnt, the rest is sent to the Schelling game prize pool.
-            No transaction fee during ICO.
-            
-            @owner      From who
-            @value      Quantity to calculate the fee
-        */
-        if ( isICO ) { return; }
-        var (_success, _fee) = getTransactionFee(value);
-        require( _success );
-        uint256 _forBurn = _fee * transactionFeeBurn / 100;
-        uint256 _forSchelling = _fee - _forBurn;
-        bool _found;
-        address _schellingAddr;
-        (_success, _found, _schellingAddr) = moduleHandler(super._getModuleHandlerAddress()).getModuleAddressByName('Schelling');
-        require( _success );
-        if ( _schellingAddr != 0x00 && _found) {
-            require( db.decrease(owner, _forSchelling) );
-            require( db.increase(_schellingAddr, _forSchelling) );
-            _burn(owner, _forBurn);
-            bytes memory _data;
-            Transfer(owner, _schellingAddr, _forSchelling, _data);
-            require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(owner, _schellingAddr, _forSchelling) );
-        } else {
-            _burn(owner, _fee);
+        if ( _to == 0 || aborted ) { return 0; }
+        
+        for ( uint256 r=0 ; r < _to ; r++ ) {
+            if ( r*interestBlockDelay+startBlock >= icoDelay ) { break; }
+            _idb = interestDB[addr][r];
+            if ( _idb.amount > 0 ) {
+                if ( _empty ) {
+                    _lastBal = _idb.amount + amount;
+                } else {
+                    _lastBal = _idb.amount;
+                }
+            }
+            if ( _idb.empty ) {
+                _lastBal = 0;
+                _empty = _idb.empty;
+            }
+            _lastBal += _tamount;
+            _tamount = _lastBal * interestOnICO / interestOnICOM / 100;
+            amount += _tamount;
         }
     }
     
-    function getTransactionFee(uint256 value) public constant returns (bool success, uint256 fee) {
+    function getInterest(address beneficiary) external {
         /*
-            Transaction fee query.
+            Request of  compound interest. This is deleted  from the database after the ICO closed and following the query of the compound interest.
             
-            @value      Quantity to calculate the fee
-            
-            @success    Was the Function successful?
-            @fee        Amount of Transaction fee
+            @beneficiary    Beneficiary who will receive the interest
         */
-        fee = value * transactionFeeRate / transactionFeeRateM / 100;
-        if ( fee > transactionFeeMax ) { fee = transactionFeeMax; }
-        else if ( fee < transactionFeeMin ) { fee = transactionFeeMin; }
-        return (true, fee);
-    }
-    
-    function mint(address owner, uint256 value) isReady external returns (bool success) {
-        /*
-            Generating tokens. It can be called only by ICO contract or the moduleHandler.
-            
-            @owner      Address
-            @value      Amount.
-            
-            @success    Was the Function successful?
-        */
-        require( super._isModuleHandler(msg.sender) || msg.sender == icoAddr );
-        _mint(owner, value);
-        return true;
-    }
-    
-    function _mint(address owner, uint256 value) internal {
-        /*
-            Internal function to generate tokens
-            
-            @owner     Token is credited to this address
-            @value     Quantity
-        */
-        require( db.increase(owner, value) );
-        require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(0x00, owner, value) );
-        if ( isICO ) {
-            require( ico(icoAddr).setInterestDB(owner, db.balanceOf(owner)) );
+        uint256 _lastBal;
+        uint256 _tamount;
+        uint256 _amount;
+        bool _empty;
+        interest_s memory _idb;
+        address _addr = beneficiary;
+        uint256 _to = (block.number - startBlock) / interestBlockDelay;
+        if ( _addr == 0x00 ) { _addr = msg.sender; }
+        
+        require( block.number > icoDelay );
+        require( ! aborted );
+        
+        for ( uint256 r=0 ; r < _to ; r++ ) {
+            if ( r*interestBlockDelay+startBlock >= icoDelay ) { break; }
+            _idb = interestDB[msg.sender][r];
+            if ( _idb.amount > 0 ) {
+                if ( _empty ) {
+                    _lastBal = _idb.amount + _amount;
+                } else {
+                    _lastBal = _idb.amount;
+                }
+            }
+            if ( _idb.empty ) {
+                _lastBal = 0;
+                _empty = _idb.empty;
+            }
+            _lastBal += _tamount;
+            _tamount = _lastBal * interestOnICO / interestOnICOM / 100;
+            _amount += _tamount;
+            delete interestDB[msg.sender][r];
         }
-        Mint(owner, value);
+        
+        require( _amount > 0 );
+        token(tokenAddr).mint(_addr, _amount);
     }
     
-    function burn(address owner, uint256 value) isReady external returns (bool success) {
+    function setICOEthPrice(uint256 value) external {
         /*
-            Burning the token. Can call only modulehandler
+            Setting of the ICO ETC USD rates which can only be calle by a pre-defined address. 
+            After this function is completed till the call of the next function (which is at least an exchangeRateDelay array) this rate counts.
+            With this process avoiding the sudden rate changes.
             
-            @owner     Burn the token from this address
-            @value     Quantity
-            
-            @success    Was the Function successful?
+            @value  The ETC/USD rate multiplied by 1e4. For example: 2.5 USD/ETC = 25000
         */
-        require( super._isModuleHandler(msg.sender) );
-        _burn(owner, value);
-        return true;
+        require( isICO() );
+        require( icoEtcPriceAddr == msg.sender );
+        require( icoExchangeRateSetBlock < block.number);
+        icoExchangeRateSetBlock = block.number + exchangeRateDelay;
+        icoExchangeRate = value;
     }
     
-    function _burn(address owner, uint256 value) internal {
+    function extendICO() external {
         /*
-            Internal function to burn the token
-     
-            @owner     Burn the token from this address
-            @value     Quantity
+            Extend the period of the ICO with one segment.
+            
+            It is only possible during the ICO and only callable by the owner.
         */
-        require( db.decrease(owner, value) );
-        require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(owner, 0x00, value) );
-        Burn(owner, value);
+        require( isICO() );
+        require( msg.sender == owner );
+        icoDelay += oneSegment;
     }
     
-    function isContract(address addr) internal returns (bool success) {
+    function closeICO() external {
         /*
-            Internal function to check if the given address is natural, or a contract
-            
-            @addr       Address to be checked
-            
-            @success    Is the address crontact or not
+            Closing the ICO.
+            It is only possible when the ICO period passed and only by the owner.
+            The 96% of the whole amount of the token is generated to the address of the fundation.
+            Ethers which are situated in this contract will be sent to the address of the fundation.
         */
-        uint256 _codeLength;
-        assembly {
-            _codeLength := extcodesize(addr)
+        require( msg.sender == owner );
+        require( block.number > icoDelay );
+        require( ! closed );
+        closed = true;
+        require( ! aborted );
+        require( token(tokenAddr).mint(foundationAddress, token(tokenAddr).totalSupply() * 96 / 100) );
+        require( premium(premiumAddr).mint(foundationAddress, totalMint / 5000 - totalPremiumMint) );
+        require( foundationAddress.send(this.balance) );
+        require( token(tokenAddr).closeIco() );
+        require( premium(premiumAddr).closeIco() );
+    }
+    
+    function abortICO() external {
+        /*
+            Withdrawal of the ICO.            
+            It is only possible during the ICO period.
+            Only callable by the owner.
+            After this process only the receiveFunds function will be available for the customers.
+        */
+        require( isICO() );
+        require( msg.sender == owner );
+        aborted = true;
+    }
+    
+    function connectTokens(address tokenContractAddr, address premiumContractAddr) external {
+        /*
+            Installation function which joins the two token contracts with this contract.
+            Only callable by the owner
+            
+            @tokenContractAddr      Address of the corion token contract.
+            @premiumContractAddr    Address of the corion premium token contract
+        */
+        require( msg.sender == owner );
+        require( tokenAddr == 0x00 && premiumAddr == 0x00 );
+        tokenAddr = tokenContractAddr;
+        premiumAddr = premiumContractAddr;
+    }
+    
+    function receiveFunds() external {
+        /*
+            Refund the amount which was purchased during the ICO period.
+            This one is only callable if the ICO is withdrawn.
+            In this case the address gets back the 90% of the amount which was spent for token during the ICO period.
+        */
+        require( aborted );
+        require( brought[msg.sender].eth > 0 );
+        uint256 _val = brought[msg.sender].eth * 90 / 100;
+        delete brought[msg.sender];
+        require( msg.sender.send(_val) );
+    }
+    
+    function () payable {
+        /*
+            Callback function. Simply calls the buy function as a beneficiary and there is no affilate address.
+            If they call the contract without any function then this process will be taken place.
+        */
+        require( isICO() );
+        require( buy(msg.sender, 0x00) );
+    }
+    
+    function buy(address beneficiaryAddress, address affilateAddress) payable returns (bool success) {
+        /*
+            Buying a token
+            
+            If there is not at least 0.2 ether balance on the beneficiaryAddress then the amount of the ether which was intended for the purchase will be reduced by 0.2 and that will be sent to the address of the beneficiary.
+            From the remaining amount calculate the reward with the help of the getIcoReward function.
+            Only that affilate address is valid which has some token on it’s account.
+            If there is a valid affilate address then calculate and credit the reward as well in the following way:
+            With more than 1e12 token contract credit 5% reward based on the calculation that how many tokens did they buy when he was added as an affilate.
+                More than 1e11 token: 4%
+                More than 1e10 token: 3%
+                More than 1e9 token: 2% below 1%
+            @beneficiaryAddress     The address of the accredited where the token will be sent.
+            @affilateAddress        The address of the person who offered who will get the referral reward. It can not be equal with the beneficiaryAddress.
+        */
+        require( isICO() );
+        if ( beneficiaryAddress == 0x00) { beneficiaryAddress = msg.sender; }
+        if ( beneficiaryAddress == affilateAddress ) {
+            affilateAddress = 0x00;
         }
-        return _codeLength > 0;
-    }
-    
-    function balanceOf(address owner) constant returns (uint256 value) {
-        /*
-            Token balance query
-            
-            @owner      Address
-            
-            @value      Balance of address
-        */
-        return db.balanceOf(owner);
-    }
-    
-    function totalSupply() constant returns (uint256 value) {
-        /*
-            Total token quantity query
-            
-            @value      Total token quantity
-        */
-        return db.totalSupply();
-    }
-    
-    function configure(announcementType aType, uint256 value) isReady external returns(bool success) {
-        /*
-            Token settings configuration.It  can be call only by moduleHandler
-           
-            @aType      Type of setting
-            @value      Value
-            
-            @success    Was the Function successful?
-        */
-        require( super._isModuleHandler(msg.sender) );
-        if      ( aType == announcementType.transactionFeeRate )    { transactionFeeRate = value; }
-        else if ( aType == announcementType.transactionFeeMin )     { transactionFeeMin = value; }
-        else if ( aType == announcementType.transactionFeeMax )     { transactionFeeMax = value; }
-        else if ( aType == announcementType.transactionFeeBurn )    { transactionFeeBurn = value; }
-        else { return false; }
+        uint256 _value = msg.value;
+        if ( beneficiaryAddress.balance < 0.2 ether ) {
+            require( beneficiaryAddress.send(0.2 ether) );
+            _value = safeSub(_value, 0.2 ether);
+        }
+        var _reward = getIcoReward(_value);
+        require( _reward > 0 );
+        require( token(tokenAddr).mint(beneficiaryAddress, _reward) );
+        brought[beneficiaryAddress].eth = safeAdd(brought[beneficiaryAddress].eth, _value);
+        brought[beneficiaryAddress].cor = safeAdd(brought[beneficiaryAddress].cor, _reward);
+        totalMint = safeAdd(totalMint, _reward);
+        require( foundationAddress.send(_value * 10 / 100) );
+        uint256 extra;
+        if ( affilateAddress != 0x00 && ( brought[affilateAddress].eth > 0 || interestDB[affilateAddress][0].amount > 0 ) ) {
+            affiliate[affilateAddress].weight = safeAdd(affiliate[affilateAddress].weight, _reward);
+            extra = affiliate[affilateAddress].weight;
+            uint256 rate;
+            if (extra >= 1e12) {
+                rate = 5;
+            } else if (extra >= 1e11) {
+                rate = 4;
+            } else if (extra >= 1e10) {
+                rate = 3;
+            } else if (extra >= 1e9) { 
+                rate = 2;
+            } else {
+                rate = 1;
+            }
+            extra = safeSub(extra * rate / 100, affiliate[affilateAddress].paid);
+            affiliate[affilateAddress].paid = safeAdd(affiliate[affilateAddress].paid, extra);
+            token(tokenAddr).mint(affilateAddress, extra);
+        }
+        checkPremium(beneficiaryAddress);
+        EICO(beneficiaryAddress, _reward, affilateAddress, extra);
         return true;
     }
+
+    function checkPremium(address owner) internal {
+        /*
+            Crediting the premium token
+        
+            @owner The corion token balance of this address will be set based on the calculation which shows that how many times can be the amount of the purchased tokens devided by 5000. So after each 5000 token we give 1 premium token.
+        */
+        uint256 _reward = (brought[owner].cor / 5e9) - brought[owner].corp;
+        if ( _reward > 0 ) {
+            require( premium(premiumAddr).mint(owner, _reward) );
+            brought[owner].corp = safeAdd(brought[owner].corp, _reward);
+            totalPremiumMint = safeAdd(totalPremiumMint, _reward);
+        }
+    }
     
-    event AllowanceUsed(address indexed spender, address indexed owner, uint256 indexed value);
-    event Mint(address indexed addr, uint256 indexed value);
-    event Burn(address indexed addr, uint256 indexed value);
-    event Approval(address indexed _owner, address indexed _spender, uint256 _value);
-    event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes _extraData);
+    function getIcoReward(uint256 value) public constant returns (uint256 reward) {
+        /*
+            Expected token volume at token purchase
+            
+            @value The amount of ether for the purchase
+            @reward Amount of the token
+                x = (value * 1e6 * USD_ETC_exchange rate / 1e4 / 1e18) * bonus percentage
+                2.700000 token = (1e18 * 1e6 * 22500 / 1e4 / 1e18) * 1.20
+        */
+        reward = value * 1e6 * icoExchangeRate / icoExchangeRateM / 1 ether;
+        for ( uint8 a=0 ; a<icoLevels.length ; a++ ) {
+            if ( block.number > icoLevels[a].block ) {
+                reward = reward * icoLevels[a].rate / 100;
+                break;
+            }
+        }
+        if ( reward < 5e6) { return 0; }
+    }
+    
+    function isICO() public constant returns (bool success) {
+        return startBlock <= block.number && block.number <= icoDelay && ( ! aborted ) && ( ! closed );
+    }
+    
+    event EICO(address indexed Address, uint256 indexed value, address Affilate, uint256 AffilateValue);
 }
