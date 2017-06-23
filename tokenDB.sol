@@ -5,54 +5,73 @@ import "owned.sol";
 
 contract tokenDB is safeMath, ownedDB {
 
-    struct _allowance {
+    struct allowance_s {
         uint256 amount;
         uint256 nonce;
     }
     
-    mapping(address => mapping(address => _allowance)) private allowance;
+    mapping(address => mapping(address => allowance_s)) private allowance;
     mapping (address => uint256) public balanceOf;
     uint256 public totalSupply;
     
-    function increase(address _owner, uint256 _value) external returns(bool) {
+    function increase(address owner, uint256 value) external returns(bool success) {
         /*
             Increase of balance of the address in database. Only owner can call it.
             
-            @_owner         Address
-            @_value         quantity
-            @bool           Was the Function successful?
+            @owner          Address
+            @value          Quantity
+            
+            @success        Was the Function successful?
         */
         require( isOwner() );
-        balanceOf[_owner] = safeAdd(balanceOf[_owner], _value);
-        totalSupply = safeAdd(totalSupply, _value);
+        balanceOf[owner] = safeAdd(balanceOf[owner], value);
+        totalSupply = safeAdd(totalSupply, value);
         return true;
     }
     
-    function decrease(address _owner, uint256 _value) external returns(bool) {
+    function decrease(address owner, uint256 value) external returns(bool success) {
         /*
             Decrease of balance of the address in database. Only owner can call it.
             
-            @_owner         Address
-            @_value         quantity
-            @bool           Was the Function successful?
+            @owner          Address
+            @value          Quantity
+            
+            @success        Was the Function successful?
         */
         require( isOwner() );
-        balanceOf[_owner] = safeSub(balanceOf[_owner], _value);
-        totalSupply = safeSub(totalSupply, _value);
+        balanceOf[owner] = safeSub(balanceOf[owner], value);
+        totalSupply = safeSub(totalSupply, value);
         return true;
     }
     
-    function setAllowance(address _owner, address _spender, uint256 _amount, uint256 _nonce) external returns(bool) {
+    function setAllowance(address owner, address spender, uint256 amount, uint256 nonce) external returns(bool success) {
         /*
             Set allowance in the database. Only owner can call it.
+            
+            @owner          Owner address
+            @spender        Spender address
+            @amount         Amount to set
+            @nonce          Transaction count
+            
+            @success        Was the Function successful?
         */
         require( isOwner() );
-        allowance[_owner][_spender].amount = _amount;
-        allowance[_owner][_spender].nonce = _nonce;
+        allowance[owner][spender].amount = amount;
+        allowance[owner][spender].nonce = nonce;
         return true;
     }
     
-    function getAllowance(address _owner, address _spender) constant returns(bool success, uint256 remaining, uint256 nonce) {
-        return ( true, allowance[_owner][_spender].amount, allowance[_owner][_spender].nonce );
+    function getAllowance(address owner, address spender) constant returns(bool success, uint256 remaining, uint256 nonce) {
+        /*
+            Get allowance from the database.
+            
+            @owner          Owner address
+            @spender        Spender address
+            
+            @success        Was the Function successful?
+            @remaining      Remaining amount of the allowance
+            @nonce          Transaction count
+        */
+        return ( true, allowance[owner][spender].amount, allowance[owner][spender].nonce );
     }
 }

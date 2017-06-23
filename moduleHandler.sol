@@ -12,26 +12,26 @@ import "premium.sol";
 import "ico.sol";
 
 contract abstractModule {
-    function connectModule() external returns (bool) {}
-    function disconnectModule() external returns (bool) {}
-    function replaceModule(address addr) external returns (bool) {}
-    function disableModule(bool forever) external returns (bool) {}
-    function isActive() public constant returns (bool) {}
-    function replaceModuleHandler(address newHandler) external returns (bool) {}
-    function transferEvent(address from, address to, uint256 value) external returns (bool) {}
-    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external returns (bool) {}
+    function connectModule() external returns (bool success) {}
+    function disconnectModule() external returns (bool success) {}
+    function replaceModule(address addr) external returns (bool success) {}
+    function disableModule(bool forever) external returns (bool success) {}
+    function isActive() public constant returns (bool success) {}
+    function replaceModuleHandler(address newHandler) external returns (bool success) {}
+    function transferEvent(address from, address to, uint256 value) external returns (bool success) {}
+    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external returns (bool success) {}
 }
 
 contract moduleHandler is owned, announcementTypes {
     
-    struct _modules {
+    struct modules_s {
         address addr;
         bytes32 name;
         bool schellingEvent;
         bool transferEvent;
     }
     
-    _modules[] public modules;
+    modules_s[] public modules;
     address public foundationAddress;
     
     function load(address foundation, bool forReplace, address Token, address Premium, address Publisher, address Schelling, address Provider) {
@@ -51,13 +51,13 @@ contract moduleHandler is owned, announcementTypes {
         require( super.isOwner() );
         require( modules.length == 0 );
         foundationAddress = foundation;
-        addModule( _modules(Token,      sha3('Token'),      false, false),  ! forReplace);
-        addModule( _modules(Premium,    sha3('Premium'),    false, false),  ! forReplace);
-        addModule( _modules(Publisher,  sha3('Publisher'),  false, true),   ! forReplace);
-        addModule( _modules(Schelling,  sha3('Schelling'),  false, true),   ! forReplace);
-        addModule( _modules(Provider,   sha3('Provider'),   true, true),    ! forReplace);
+        addModule( modules_s(Token,      sha3('Token'),      false, false),  ! forReplace);
+        addModule( modules_s(Premium,    sha3('Premium'),    false, false),  ! forReplace);
+        addModule( modules_s(Publisher,  sha3('Publisher'),  false, true),   ! forReplace);
+        addModule( modules_s(Schelling,  sha3('Schelling'),  false, true),   ! forReplace);
+        addModule( modules_s(Provider,   sha3('Provider'),   true, true),    ! forReplace);
     }
-    function addModule(_modules input, bool call) internal {
+    function addModule(modules_s input, bool call) internal {
         /*
             Inside function for registration of the modules in the database.
             If the call is false, wont happen any direct call.
@@ -66,105 +66,125 @@ contract moduleHandler is owned, announcementTypes {
             @call   Is connect to the module or not.
         */
         if ( call ) { require( abstractModule(input.addr).connectModule() ); }
-        var (id, found) = searchModuleByAddress(0x0);
+        var (success, found, id) = getModuleIDByAddress(input.addr);
+        require( success && ! found );
+        (success, found, id) = getModuleIDByHash(input.name);
+        require( success && ! found );
+        (success, found, id) = getModuleIDByAddress(0x00);
+        require( success );
         if ( ! found ) {
             id = modules.length;
             modules.length++;
         }
         modules[id] = input;
     }
-    function getModuleAddressByName(string name) external returns ( address addr, bool found, bool success) {
+    function getModuleAddressByName(string name) public constant returns( bool success, bool found, address addr ) {
         /*
             Search by name for module. The result is an Ethereum address.
             
             @name       Name of module.
-            @addr       address of module.
+            @addr       Address of module.
             @found      Is there any result.
             @success    Was the transaction succesfull or not.
         */
-        var (a, b) = getModuleIDByName(name);
-        if ( b ) { return (modules[a].addr, true, true); }
-        return (0x00, false, true);
+        var (_success, _found, _id) = getModuleIDByName(name);
+        if ( _success && _found ) { return (true, true, modules[_id].addr); }
+        return (true, false, 0x00);
     }
-    function getModuleIDByName(string name) internal returns( uint id, bool found ) {
+    function getModuleIDByHash(bytes32 hashOfName) public constant returns( bool success, bool found, uint256 id ) {
+        /*
+            Search by hash of name in the module array. The result is an index array.
+            
+            @name       Name of module.
+            @id         Index of module.
+            @found      Was there any result or not.
+        */
+        for ( uint256 a=0 ; a<modules.length ; a++ ) {
+            if ( modules[a].name == hashOfName ) {
+                return (true, true, a);
+            }
+        }
+        return (true, false, 0);
+    }
+    function getModuleIDByName(string name) public constant returns( bool success, bool found, uint256 id ) {
         /*
             Search by name for module. The result is an index array.
             
-            @name       name of module.
-            @id         index of module.
+            @name       Name of module.
+            @id         Index of module.
             @found      Was there any result or not.
         */
         bytes32 _name = sha3(name);
         for ( uint256 a=0 ; a<modules.length ; a++ ) {
             if ( modules[a].name == _name ) {
-                return (a, true);
+                return (true, true, a);
             }
         }
+        return (true, false, 0);
     }
-    function searchModuleByAddress(address addr) internal returns( uint id, bool found ) {
+    function getModuleIDByAddress(address addr) public constant returns( bool success, bool found, uint256 id ) {
         /*
             Search by ethereum address for module. The result is an index array.
             
-            @name       name of module.
-            @id         index of module.
+            @name       Name of module.
+            @id         Index of module.
             @found      Was there any result or not.
         */
         for ( uint256 a=0 ; a<modules.length ; a++ ) {
             if ( modules[a].addr == addr ) {
-                return (a, true);
+                return (true, true, a);
             }
         }
+        return (true, false, 0);
     }
-    function replaceModule(string name, address addr) external returns (bool) {
+    function replaceModule(string name, address addr) external returns (bool success) {
         /*
             Module replace, can be called only by the Publisher contract.
             
-            @name       name of module.
-            @addr       address of module.
+            @name       Name of module.
+            @addr       Address of module.
             @bool       Was there any result or not.
         */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Publisher') );
-        (id, found) = getModuleIDByName(name);
-        require( found );
-        require( abstractModule(modules[id].addr).replaceModule(addr) );
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Publisher') );
+        (_success, _found, _id) = getModuleIDByName(name);
+        require( _success && _found );
+        require( abstractModule(modules[_id].addr).replaceModule(addr) );
         require( abstractModule(addr).connectModule() );
-        modules[id].addr = addr;
+        modules[_id].addr = addr;
         return true;
     }
-    function newModule(string name, address addr, bool schellingEvent, bool transferEvent) external returns (bool) {
+    function newModule(string name, address addr, bool schellingEvent, bool transferEvent) external returns (bool success) {
         /*
             Adding new module to the database. Can be called only by the Publisher contract.
             
-            @name               name of module.
-            @addr               address of module.
+            @name               Name of module.
+            @addr               Address of module.
             @schellingEvent     Gets it new Schelling round notification?
             @transferEvent      Gets it new transaction notification?
             @bool               Was there any result or not.
         */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Publisher') );
-        (id, found) = getModuleIDByName(name);
-        require( ! found );
-        addModule( _modules(addr, sha3(name), schellingEvent, transferEvent), true);
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Publisher') );
+        addModule( modules_s(addr, sha3(name), schellingEvent, transferEvent), true);
         return true;
     }
-    function dropModule(string name) external returns (bool) {
+    function dropModule(string name) external returns (bool success) {
         /*
             Deleting module from the database. Can be called only by the Publisher contract.
             
             @name   Name of module to delete.
             @bool   Was the function successfull?
         */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Publisher') );
-        (id, found) = getModuleIDByName(name);
-        require( found );
-        abstractModule(modules[id].addr).disableModule(true);
-        delete modules[id];
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Publisher') );
+        (_success, _found, _id) = getModuleIDByName(name);
+        require( _success && _found );
+        abstractModule(modules[_id].addr).disableModule(true);
+        delete modules[_id];
         return true;
     }
-    function broadcastTransfer(address from, address to, uint256 value) external returns (bool) {
+    function broadcastTransfer(address from, address to, uint256 value) external returns (bool success) {
         /*
             Announcing transactions for the modules.
             
@@ -176,8 +196,8 @@ contract moduleHandler is owned, announcementTypes {
             @value      amount.
             @bool       Was the function successfull?
         */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Token') );
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Token') );
         for ( uint256 a=0 ; a<modules.length ; a++ ) {
             if ( modules[a].transferEvent && abstractModule(modules[a].addr).isActive() ) {
                 require( abstractModule(modules[a].addr).transferEvent(from, to, value) );
@@ -185,7 +205,7 @@ contract moduleHandler is owned, announcementTypes {
         }
         return true;
     }
-    function broadcastSchellingRound(uint256 roundID, uint256 reward) external returns (bool) {
+    function broadcastSchellingRound(uint256 roundID, uint256 reward) external returns (bool success) {
         /*
             Announcing new Schelling round for the modules.
             Can be called only by the Schelling module.
@@ -195,8 +215,8 @@ contract moduleHandler is owned, announcementTypes {
             @reward         Coin emission in this Schelling round.
             @bool           Was the function successfull?
         */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Schelling') );
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Schelling') );
         for ( uint256 a=0 ; a<modules.length ; a++ ) {
             if ( modules[a].schellingEvent && abstractModule(modules[a].addr).isActive() ) {
                 require( abstractModule(modules[a].addr).newSchellingRoundEvent(roundID, reward) );
@@ -204,7 +224,7 @@ contract moduleHandler is owned, announcementTypes {
         }
         return true;
     }
-    function replaceModuleHandler(address newHandler) external returns (bool) {
+    function replaceModuleHandler(address newHandler) external returns (bool success) {
         /*
             Replacing ModuleHandler.
             
@@ -214,165 +234,164 @@ contract moduleHandler is owned, announcementTypes {
             @newHandler     Address of the new ModuleHandler.
             @bool           Was the function successfull?
         */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Publisher') );
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Publisher') );
         for ( uint256 a=0 ; a<modules.length ; a++ ) {
             require( abstractModule(modules[a].addr).replaceModuleHandler(newHandler) );
         }
         return true;
     }
-    function balanceOf(address _owner) public constant returns (uint256 value, bool success) {
+    function balanceOf(address owner) public constant returns (bool success, uint256 value) {
         /*
             Query of token balance.
             
-            @_owner     address
+            @owner     address
             @value      balance.
             @success    was the function successfull?
         */
-        var (id, found) = getModuleIDByName('Token');
-        require( found );
-        return (token(modules[id].addr).balanceOf(_owner), true);
+        var (_success, _found, _id) = getModuleIDByName('Token');
+        require( _success && _found );
+        return (true, token(modules[_id].addr).balanceOf(owner));
     }
-    function totalSupply() public constant returns (uint256 value, bool success) {
+    function totalSupply() public constant returns (bool success, uint256 value) {
         /*
             Query of the whole token amount.
             
             @value      amount.
             @success    was the function successfull?
         */
-        var (id, found) = getModuleIDByName('Token');
-        require( found );
-        return (token(modules[id].addr).totalSupply(), true);
+        var (_success, _found, _id) = getModuleIDByName('Token');
+        require( _success && _found );
+        return (true, token(modules[_id].addr).totalSupply());
     }
-    function isICO() public constant returns (bool ico, bool success) {
+    function isICO() public constant returns (bool success, bool ico) {
         /*
             Query of ICO state
             
             @ico        Is ICO in progress?.
             @success    was the function successfull?
         */
-        var (id, found) = getModuleIDByName('Token');
-        require( found );
-        return (token(modules[id].addr).isICO(), true);
+        var (_success, _found, _id) = getModuleIDByName('Token');
+        require( _success && _found );
+        return (true, token(modules[_id].addr).isICO());
     }
-    function getCurrentSchellingRoundID() public constant returns (uint256 round, bool success) {
+    function getCurrentSchellingRoundID() public constant returns (bool success, uint256 round) {
         /*
             Query of number of the actual Schelling round.
             
             @round      Schelling round.
             @success    was the function successfull?
         */
-        var (id, found) = getModuleIDByName('Schelling');
-        require( found );
-        return (schelling(modules[id].addr).getCurrentSchellingRoundID(), true);
+        var (_success, _found, _id) = getModuleIDByName('Schelling');
+        require( _success && _found );
+        return (true, schelling(modules[_id].addr).getCurrentSchellingRoundID());
     }
-    function mint(address _to, uint256 _value) external returns (bool success) {
+    function mint(address to, uint256 value) external returns (bool success) {
         /*
             Token emission request. Can be called only by the provider.
             
-            @_to        Place of new token
-            @_value     Token amount.
-            @success    was the function successfull?
-        */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Provider') );
-        (id, found) = getModuleIDByName('Token');
-        require( found );
-        require( token(modules[id].addr).mint(_to, _value) );
-        return true;
-    }
-    function transfer(address _from, address _to, uint256 _value, bool _fee) external returns (bool success) {
-        /*
-            Token transaction request. If the _from isn’t equal with the address of the caller, than can be called only by the Schelling module.
+            @to         Place of new token
+            @value      Token amount
             
-            @_from      from who.
-            @_to        to who.
-            @_value     Token amount.
-            @_fee       Transaction fee will be charged or not?
-            @success    was the function successfull?
+            @success    Was the function successfull?
         */
-        var (id, found) = getModuleIDByName('Token');
-        require( found );
-        if ( _from != msg.sender ) {
-            var (sid, sfound) = searchModuleByAddress(msg.sender);
-            require( sfound && modules[sid].name == sha3('Schelling') );
-        }
-        require( token(modules[id].addr).transferFromByModule(_from, _to, _value, _fee) );
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Provider') );
+        (_success, _found, _id) = getModuleIDByName('Token');
+        require( _success && _found );
+        require( token(modules[_id].addr).mint(to, value) );
         return true;
     }
-    function processTransactionFee(address _from, uint256 _value) external returns (bool success) {
+    function transfer(address from, address to, uint256 value, bool fee) external returns (bool success) {
+        /*
+            Token transaction request. Can be called only by a module.
+            
+            @from       from who.
+            @to         To who.
+            @value      Token amount.
+            @fee        Transaction fee will be charged or not?
+            @success    Was the function successfull?
+        */
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found );
+        (_success, _found, _id) = getModuleIDByName('Token');
+        require( _success && _found );
+        require( token(modules[_id].addr).transferFromByModule(from, to, value, fee) );
+        return true;
+    }
+    function processTransactionFee(address from, uint256 value) external returns (bool success) {
         /*
             Token transaction fee. Can be called only by the provider.
             
-            @_from      from who.
-            @_value     Token amount.
-            @success    was the function successfull?
+            @from       From who.
+            @value      Token amount.
+            @success    Was the function successfull?
         */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Provider') );
-        (id, found) = getModuleIDByName('Token');
-        require( found );
-        require( token(modules[id].addr).processTransactionFee(_from, _value) );
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Provider') );
+        (_success, _found, _id) = getModuleIDByName('Token');
+        require( _success && _found );
+        require( token(modules[_id].addr).processTransactionFee(from, value) );
         return true;
     }
-    function burn(address _from, uint256 _value) external returns (bool success) {
+    function burn(address from, uint256 value) external returns (bool success) {
         /*
             Token burn. Can be called only by Schelling.
             
-            @_from      from who.
-            @_value     Token amount.
-            @success    was the function successfull?
+            @from       From who.
+            @value      Token amount.
+            @success    Was the function successfull?
         */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Schelling') );
-        (id, found) = getModuleIDByName('Token');
-        require( found );
-        require( token(modules[id].addr).burn(_from, _value) );
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Schelling') );
+        (_success, _found, _id) = getModuleIDByName('Token');
+        require( _success && _found );
+        require( token(modules[_id].addr).burn(from, value) );
         return true;
     }
-    function configureToken(announcementType a, uint256 b) external returns (bool success) {
+    function configureToken(announcementType aType, uint256 value) external returns (bool success) {
         /*
             Changing token configuration. Can be called only by Publisher.
             
-            @a          Type of variable (announcementType).
-            @b          New value
-            @success    was the function successfull?
+            @aType      Type of variable (announcementType).
+            @value      New value
+            @success    Was the function successfull?
         */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Publisher') );
-        (id, found) = getModuleIDByName('Token');
-        require( found );
-        require( token(modules[id].addr).configure(a, b) );
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Publisher') );
+        (_success, _found, _id) = getModuleIDByName('Token');
+        require( _success && _found );
+        require( token(modules[_id].addr).configure(aType, value) );
         return true;
     }
-    function configureProvider(announcementType a, uint256 b) external returns (bool success) {
+    function configureProvider(announcementType aType, uint256 value) external returns (bool success) {
         /*
             Changing configuration of provider. Can be called only by provider
             
-            @a          Type of variable (announcementType).
-            @b          New value
-            @success    was the function successfull?
+            @aType      Type of variable (announcementType).
+            @value      New value
+            @success    Was the function successfull?
         */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Publisher') );
-        (id, found) = getModuleIDByName('Provider');
-        require( found );
-        require( provider(modules[id].addr).configure(a, b) );
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Publisher') );
+        (_success, _found, _id) = getModuleIDByName('Provider');
+        require( _success && _found );
+        require( provider(modules[_id].addr).configure(aType, value) );
         return true;
     }
-    function configureSchelling(announcementType a, uint256 b) external returns (bool success) {
+    function configureSchelling(announcementType aType, uint256 value) external returns (bool success) {
         /*
             Changing configuration of Schelling. Can be called only by Publisher.
             
-            @a          Type of variable (announcementType).
-            @b          New value
-            @success    was the function successfull?
+            @aType      Type of variable (announcementType).
+            @value      New value
+            @success    Was the function successfull?
         */
-        var (id, found) = searchModuleByAddress(msg.sender);
-        require( found && modules[id].name == sha3('Publisher') );
-        (id, found) = getModuleIDByName('Schelling');
-        require( found );
-        require( schelling(modules[id].addr).configure(a, b) );
+        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
+        require( _success && _found && modules[_id].name == sha3('Publisher') );
+        (_success, _found, _id) = getModuleIDByName('Schelling');
+        require( _success && _found );
+        require( schelling(modules[_id].addr).configure(aType, value) );
         return true;
     }
     function freezing(bool forever) external {

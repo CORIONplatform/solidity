@@ -11,8 +11,8 @@ contract provider is module, safeMath, announcementTypes {
     */
     function connectModule() external returns (bool) {
         require( super._connectModule() );
-        var (currentSchellingRound, s) = moduleHandler(super._getModuleHandlerAddress()).getCurrentSchellingRoundID();
-        require( s );
+        var (_success, currentSchellingRound) = moduleHandler(super._getModuleHandlerAddress()).getCurrentSchellingRoundID();
+        require( _success );
         return true;
     }
     function disconnectModule() external returns (bool) {
@@ -780,24 +780,27 @@ contract provider is module, safeMath, announcementTypes {
             }
         }
     }
-    function getTokenBalance(address addr) internal returns (uint256) {
+    function getTokenBalance(address addr) internal returns (uint256 balance) {
         /*
             Inner function in order to poll the token balance of the address.
+            
             @addr       Address
-            @uint256    Balance of the address.
+            
+            @balance    Balance of the address.
         */
-        var (a, b) = moduleHandler(super._getModuleHandlerAddress()).balanceOf(addr);
-        require( b );
-        return a;
+        var (_success, _balance) = moduleHandler(super._getModuleHandlerAddress()).balanceOf(addr);
+        require( _success );
+        return _balance;
     }
-    function checkICO() internal returns (bool) {
+    function checkICO() internal returns (bool isICO) {
         /*
             Inner function to check the ICO status.
-            @bool       Is the ICO in proccess or not?
+            
+            @isICO      Is the ICO in proccess or not?
         */
-        var (a, b) = moduleHandler(super._getModuleHandlerAddress()).isICO();
-        require( b );
-        return a;
+        var (_success, _isICO) = moduleHandler(super._getModuleHandlerAddress()).isICO();
+        require( _success );
+        return _isICO;
     }
     event EProviderOpen(address addr, uint256 height);
     event EClientLost(address indexed client, address indexed provider, uint256 height, uint256 indexed value);
