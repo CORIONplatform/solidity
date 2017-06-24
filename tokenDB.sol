@@ -10,7 +10,7 @@ contract tokenDB is safeMath, ownedDB {
         uint256 nonce;
     }
     
-    mapping(address => mapping(address => allowance_s)) private allowance;
+    mapping(address => mapping(address => allowance_s)) public allowance;
     mapping (address => uint256) public balanceOf;
     uint256 public totalSupply;
     
