@@ -17,9 +17,9 @@ contract module {
         Disabled
     }
     
-    status private moduleStatus;
-    uint256 private disabledUntil;
-    address private moduleHandlerAddress;
+    status public moduleStatus;
+    uint256 public disabledUntil;
+    address public moduleHandlerAddress;
     
     function _connectModule() internal returns (bool success) {
         /*
