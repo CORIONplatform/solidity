@@ -50,17 +50,17 @@ contract token is safeMath, module, announcementTypes {
     string public symbol = "COR";
     uint8 public decimals = 6;
     
-    tokenDB private db;
+    tokenDB public db;
     address public icoAddr;
-    uint256 private transactionFeeRate      = 20;
-    uint256 private transactionFeeRateM     = 1e3;
-    uint256 private transactionFeeMin       =   20000;
-    uint256 private transactionFeeMax       = 5000000;
-    uint256 private transactionFeeBurn      = 80;
-    address private exchangeAddress;
-    bool    public  isICO                   = true;
+    uint256 public transactionFeeRate      = 20;
+    uint256 public transactionFeeRateM     = 1e3;
+    uint256 public transactionFeeMin       =   20000;
+    uint256 public transactionFeeMax       = 5000000;
+    uint256 public transactionFeeBurn      = 80;
+    address public exchangeAddress;
+    bool    public isICO                   = true;
     
-    mapping(address => bool) private genesis;
+    mapping(address => bool) public genesis;
     
     function token(bool forReplace, address moduleHandler, address dbAddr, address icoContractAddr, address exchangeContractAddress, address[] genesisAddr, uint256[] genesisValue) payable {
         /*
@@ -527,5 +527,5 @@ contract token is safeMath, module, announcementTypes {
     event Mint(address indexed addr, uint256 indexed value);
     event Burn(address indexed addr, uint256 indexed value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
-    event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes _extraData);
+    event Transfer(address indexed _from, address indexed _to, uint256 indexed _value, bytes _extraData);
 }

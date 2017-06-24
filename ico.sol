@@ -25,30 +25,30 @@ contract ico is safeMath {
         uint256 corp;
     }
     
-    uint256 private constant oneSegment = 40320;
+    uint256 constant oneSegment = 40320;
     
-    address private owner;
-    address private tokenAddr;
-    address private premiumAddr;
+    address public owner;
+    address public tokenAddr;
+    address public premiumAddr;
     uint256 public startBlock;
     uint256 public icoDelay;
-    address private foundationAddress;
-    address private icoEtcPriceAddr;
+    address public foundationAddress;
+    address public icoEtcPriceAddr;
     uint256 public icoExchangeRate;
-    uint256 private icoExchangeRateSetBlock;
+    uint256 public icoExchangeRateSetBlock;
     uint256 constant icoExchangeRateM = 1e4;
-    uint256 private interestOnICO   = 25;
-    uint256 private interestOnICOM  = 1e3;
-    uint256 private interestBlockDelay = 720;
-    uint256 private constant exchangeRateDelay = 125;
+    uint256 constant interestOnICO   = 25;
+    uint256 constant interestOnICOM  = 1e3;
+    uint256 constant interestBlockDelay = 720;
+    uint256 constant exchangeRateDelay = 125;
     bool public aborted;
     bool public closed;
     icoLevels_s[] private icoLevels;
-    mapping (address => affiliate_s) private affiliate;
-    mapping (address => brought_s) private brought;
-    mapping (address => mapping(uint256 => interest_s)) private interestDB;
-    uint256 private totalMint;
-    uint256 private totalPremiumMint;
+    mapping (address => affiliate_s) public affiliate;
+    mapping (address => brought_s) public brought;
+    mapping (address => mapping(uint256 => interest_s)) public interestDB;
+    uint256 public totalMint;
+    uint256 public totalPremiumMint;
     
     function ico(address foundation, address priceSet, uint256 exchangeRate, uint256 startBlockNum, address[] genesisAddr, uint256[] genesisValue) {
         /*

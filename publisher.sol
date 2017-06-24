@@ -64,10 +64,10 @@ contract publisher is announcementTypes, module, safeMath {
     
     mapping(address => bool) private admins;
     
-    uint256 private minAnnouncementDelay = 40320;
-    uint256 private minAnnouncementDelayOnICO = 17280;
-    uint8 private oppositeRate = 33;
-    address private owner = msg.sender;
+    uint256 public  minAnnouncementDelay = 40320;
+    uint256 public minAnnouncementDelayOnICO = 17280;
+    uint8 public oppositeRate = 33;
+    address public owner;
     
     struct announcements_s {
         announcementType Type;
@@ -84,13 +84,13 @@ contract publisher is announcementTypes, module, safeMath {
         uint256 _uint;
         address _addr;
     }
-    announcements_s[] private announcements;
+    announcements_s[] public announcements;
     
     struct opponents_s {
         uint256[] announcements;
         uint256 weight;
     }
-    mapping (address => opponents_s) opponents;
+    mapping (address => opponents_s) public opponents;
     
     function publisher(address moduleHandler) {
         /*
@@ -99,6 +99,7 @@ contract publisher is announcementTypes, module, safeMath {
             @moduleHandler      Address of moduleHandler
         */
         require( super._registerModuleHandler(moduleHandler) );
+        owner = msg.sender;
         admins[msg.sender] = true;
     }
     
@@ -314,5 +315,4 @@ contract publisher is announcementTypes, module, safeMath {
     event EOppositeAnnouncement(uint256 id, address addr, uint256 value);
     event EInvalidateAnnouncement(uint256 id);
     event ECloseAnnouncement(uint256 id);
-    
 }

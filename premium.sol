@@ -48,11 +48,11 @@ contract premium is module, safeMath {
     string public symbol = "CORP";
     uint8 public decimals = 0;
     
-    address private icoAddr;
-    tokenDB private db;
+    address public icoAddr;
+    tokenDB public db;
     bool    public  isICO;
     
-    mapping(address => bool) private genesis;
+    mapping(address => bool) public genesis;
     
     function premium(bool forReplace, address moduleHandler, address dbAddress, address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) {
         /*
