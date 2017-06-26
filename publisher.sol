@@ -9,29 +9,6 @@ contract publisher is announcementTypes, module, safeMath {
     /*
         module callbacks
     */
-    function connectModule() external returns (bool success) {
-        require( super._connectModule() );
-        return true;
-    }
-    function disconnectModule() external returns (bool success) {
-        require( super._disconnectModule() );
-        return true;
-    }
-    function replaceModule(address addr) external returns (bool success) {
-        require( super._replaceModule(addr) );
-        return true;
-    }
-    function disableModule(bool forever) external returns (bool success) {
-        require( super._disableModule(forever) );
-        return true;
-    }
-    function isActive() public constant returns (bool success) {
-        return super._isActive();
-    }
-    function replaceModuleHandler(address newHandler) external returns (bool success) {
-        require( super._replaceModuleHandler(newHandler) );
-        return true;
-    }
     function transferEvent(address from, address to, uint256 value) external returns (bool success) {
         /*
             Transaction completed. This function is available only for moduleHandler
@@ -56,7 +33,11 @@ contract publisher is announcementTypes, module, safeMath {
         }
         return true;
     }
-    modifier isReady { require( super._isActive() ); _; }
+    modifier isReady {
+        var (success, active) = super.isActive();
+        require( success && active ); 
+        _;
+    }
     
     /*
         Pool

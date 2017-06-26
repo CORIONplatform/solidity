@@ -15,31 +15,16 @@ contract token is safeMath, module, announcementTypes {
     /*
         module callbacks
     */
-    function connectModule() external returns (bool success) {
-        require( super._connectModule() );
-        return true;
-    }
-    function disconnectModule() external returns (bool success) {
-        require( super._disconnectModule() );
-        return true;
-    }
     function replaceModule(address addr) external returns (bool success) {
         require( db.replaceOwner(addr) );
         require( super._replaceModule(addr) );
         return true;
     }
-    function disableModule(bool forever) external returns (bool success) {
-        require( super._disableModule(forever) );
-        return true;
+    modifier isReady {
+        var (success, active) = super.isActive();
+        require( success && active ); 
+        _;
     }
-    function isActive() public constant returns (bool success) {
-        return super._isActive();
-    }
-    function replaceModuleHandler(address newHandler) external returns (bool success) {
-        require( super._replaceModuleHandler(newHandler) );
-        return true;
-    }
-    modifier isReady { require( super._isActive() ); _; }
     /**
     *
     * @title Corion Platform Token

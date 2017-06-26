@@ -133,29 +133,10 @@ contract schelling is module, announcementTypes, schellingVars {
     /*
         module callbacks
     */
-    function connectModule() external returns (bool) {
-        require( super._connectModule() );
-        return true;
-    }
-    function disconnectModule() external returns (bool) {
-        require( super._disconnectModule() );
-        return true;
-    }
     function replaceModule(address addr) external returns (bool) {
         require( db.replaceOwner(addr) );
         require( moduleHandler(super._getModuleHandlerAddress()).transfer(address(this), addr, getTokenBalance(address(this)), false) );
         require( super._replaceModule(addr) );
-        return true;
-    }
-    function disableModule(bool forever) external returns (bool) {
-        require( super._disableModule(forever) );
-        return true;
-    }
-    function isActive() public constant returns (bool) {
-        return super._isActive();
-    }
-    function replaceModuleHandler(address newHandler) external returns (bool) {
-        require( super._replaceModuleHandler(newHandler) );
         return true;
     }
     function transferEvent(address from, address to, uint256 value) external returns (bool) {
@@ -177,7 +158,11 @@ contract schelling is module, announcementTypes, schellingVars {
         }
         return true;
     }
-    modifier isReady { require( super._isActive() ); _; }
+    modifier isReady {
+        var (success, active) = super.isActive();
+        require( success && active ); 
+        _;
+    }
     /*
         Schelling database functions.
     */

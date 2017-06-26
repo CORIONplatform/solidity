@@ -23,11 +23,10 @@ contract module {
     
     function _connectModule() internal returns (bool success) {
         /*
-            Registering and/or connecting-to ModuleHandler
+            Registering and/or connecting-to ModuleHandler.
+            This function is called by ModuleHandler load or by Publisher.
             
-            This function is called by ModuleHandler load.
-                or
-            Calls the Pool module at ModuleHandler
+            @success    Function call was successfull or not
         */
         require( msg.sender == moduleHandlerAddress && moduleStatus == status.New );
         moduleStatus = status.Connected;
@@ -36,9 +35,10 @@ contract module {
     }
     function _registerModuleHandler(address addr) internal returns(bool success) {
         /*
-            Registering ModuleHandler address
-            
+            Registering ModuleHandler address.
             This function is automatic called while depoying the contract.
+            
+            @success    Function call was successfull or not
         */
         require( moduleHandlerAddress == 0x00 && moduleStatus == status.New );
         moduleHandlerAddress = addr;
@@ -46,9 +46,10 @@ contract module {
     }
     function _disconnectModule() internal returns (bool success) {
         /*
-            Disconnect the module from the ModuleHandler
+            Disconnect the module from the ModuleHandler.
+            This function calls the Publisher module.
             
-            This function calls the Poll module
+            @success    Function call was successfull or not
         */
         require( msg.sender == moduleHandlerAddress && moduleStatus == status.Connected );
         moduleStatus = status.Disconnected;
@@ -56,11 +57,11 @@ contract module {
     }
     function _replaceModule(address addr) internal returns (bool success) {
         /*
-            Replace the module for an another new module
+            Replace the module for an another new module.
+            This function calls the Publisher module.
+            We send every Token and ether to the new module.
             
-            This function calls the Poll module
-            
-            We send every Token and ether to the new module
+            @success    Function call was successfull or not
         */
         require( msg.sender == moduleHandlerAddress && moduleStatus == status.Connected );
         var (bal, s) = abstractModuleHandler(moduleHandlerAddress).balanceOf(address(this));
@@ -73,46 +74,72 @@ contract module {
         moduleStatus = status.Disconnected;
         return true;
     }
-    function _isActive() internal returns (bool success) {
+    function _isModuleHandler(address addr) internal returns (bool ret) {
         /*
-            Ask for is active the module or not
+            Test for ModuleHandler address.
+            If the module is not connected then returns always false.
             
-            Free to call
+            @ret    This is the module handler address or not
         */
-        if ( moduleStatus != status.Connected || block.number < disabledUntil ) { return false; }
-        return true;
+        if ( moduleStatus != status.Connected ) { return false; }
+        return addr == moduleHandlerAddress;
     }
-    function _disableModule(bool forever) internal returns (bool success) {
+    function _getModuleHandlerAddress() internal returns (address moduleHandlerAddress) {
+        /*
+            Get the module handler address.
+            
+            @moduleHandlerAddress   Return the module handler address.
+        */
+        return moduleHandlerAddress;
+    }
+    function disableModule(bool forever) external returns (bool success) {
         /*
             Disable the module for one week, if the forever true then for forever.
+            This function calls the Publisher module.
             
-            This function calls the Poll module
+            @success    Function call was successfull or not
         */
         require( msg.sender == moduleHandlerAddress );
         if ( forever ) { moduleStatus = status.Disabled; }
         disabledUntil = block.number + 40320;
         return true;
     }
-    function _replaceModuleHandler(address newHandler) internal returns (bool) {
+    function isActive() public constant returns (bool success, bool active) {
+        /*
+            Check self for ready for functions or not.
+            
+            @success    Function call was successfull or not
+            @active     Ready for functions or not
+        */
+        return (true, moduleStatus == status.Connected && block.number >= disabledUntil);
+    }
+    function replaceModuleHandler(address newHandler) external returns (bool success) {
         /*
             Replace the ModuleHandler address.
+            This function calls the Publisher module.
             
-            This function calls the Poll module
+            @success    Function call was successfull or not
         */
         require( msg.sender == moduleHandlerAddress && moduleStatus == status.Connected );
         moduleHandlerAddress = newHandler;
         return true;
     }
-    function _isModuleHandler(address addr) internal returns (bool) {
-        /*
-            Test for ModuleHandler address
-            
-            Free to call
-        */
-        if ( moduleStatus != status.Connected ) { return false; }
-        return addr == moduleHandlerAddress;
+    function connectModule() external returns (bool success) {
+        require( _connectModule() );
+        return true;
     }
-    function _getModuleHandlerAddress() internal returns (address) {
-        return moduleHandlerAddress;
+    function disconnectModule() external returns (bool success) {
+        require( _disconnectModule() );
+        return true;
+    }
+    function replaceModule(address addr) external returns (bool success) {
+        require( _replaceModule(addr) );
+        return true;
+    }
+    function transferEvent(address from, address to, uint256 value) external returns (bool success) {
+        return true;
+    }
+    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external returns (bool success) {
+        return true;
     }
 }
