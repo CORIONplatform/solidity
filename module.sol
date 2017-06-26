@@ -73,36 +73,6 @@ contract module {
         moduleStatus = status.Disconnected;
         return true;
     }
-    function _isActive() internal returns (bool success) {
-        /*
-            Ask for is active the module or not
-            
-            Free to call
-        */
-        if ( moduleStatus != status.Connected || block.number < disabledUntil ) { return false; }
-        return true;
-    }
-    function _disableModule(bool forever) internal returns (bool success) {
-        /*
-            Disable the module for one week, if the forever true then for forever.
-            
-            This function calls the Poll module
-        */
-        require( msg.sender == moduleHandlerAddress );
-        if ( forever ) { moduleStatus = status.Disabled; }
-        disabledUntil = block.number + 40320;
-        return true;
-    }
-    function _replaceModuleHandler(address newHandler) internal returns (bool) {
-        /*
-            Replace the ModuleHandler address.
-            
-            This function calls the Poll module
-        */
-        require( msg.sender == moduleHandlerAddress && moduleStatus == status.Connected );
-        moduleHandlerAddress = newHandler;
-        return true;
-    }
     function _isModuleHandler(address addr) internal returns (bool) {
         /*
             Test for ModuleHandler address
@@ -114,5 +84,47 @@ contract module {
     }
     function _getModuleHandlerAddress() internal returns (address) {
         return moduleHandlerAddress;
+    }
+    function disableModule(bool forever) external returns (bool success) {
+        /*
+            Disable the module for one week, if the forever true then for forever.
+            
+            This function calls the Poll module
+        */
+        require( msg.sender == moduleHandlerAddress );
+        if ( forever ) { moduleStatus = status.Disabled; }
+        disabledUntil = block.number + 40320;
+        return true;
+    }
+    function isActive() public constant returns (bool success, bool active) {
+        return (true, moduleStatus == status.Connected && block.number >= disabledUntil);
+    }
+    function replaceModuleHandler(address newHandler) external returns (bool success) {
+        /*
+            Replace the ModuleHandler address.
+            
+            This function calls the Poll module
+        */
+        require( msg.sender == moduleHandlerAddress && moduleStatus == status.Connected );
+        moduleHandlerAddress = newHandler;
+        return true;
+    }
+    function connectModule() external returns (bool success) {
+        require( _connectModule() );
+        return true;
+    }
+    function disconnectModule() external returns (bool success) {
+        require( _disconnectModule() );
+        return true;
+    }
+    function replaceModule(address addr) external returns (bool success) {
+        require( _replaceModule(addr) );
+        return true;
+    }
+    function transferEvent(address from, address to, uint256 value) external returns (bool success) {
+        return true;
+    }
+    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external returns (bool success) {
+        return true;
     }
 }
