@@ -17,12 +17,12 @@ contract token is safeMath, module, announcementTypes {
     */
     function replaceModule(address addr) external returns (bool success) {
         require( db.replaceOwner(addr) );
-        require( super._replaceModule(addr) );
+        super._replaceModule(addr);
         return true;
     }
     modifier isReady {
-        var (success, active) = super.isActive();
-        require( success && active ); 
+        var (_success, _active) = super.isActive();
+        require( _success && _active ); 
         _;
     }
     /**
@@ -61,7 +61,7 @@ contract token is safeMath, module, announcementTypes {
             @genesisAddr                Array of Genesis addresses
             @genesisValue               Array of balance of genesis addresses
         */
-        require( super._registerModuleHandler(moduleHandler) );
+        super.registerModuleHandler(moduleHandler);
         require( dbAddr != 0x00 );
         require( icoContractAddr != 0x00 );
         require( exchangeContractAddress != 0x00 );
@@ -253,7 +253,7 @@ contract token is safeMath, module, announcementTypes {
             @success    Was the Function successful?
         */
         bytes memory _data;
-        require( super._isModuleHandler(msg.sender) );
+        require( super.isModuleHandler(msg.sender) );
         _transfer( from, to, amount, fee);
         Transfer(from, to, amount, _data);
         return true;
@@ -333,7 +333,7 @@ contract token is safeMath, module, announcementTypes {
             require( ico(icoAddr).setInterestDB(from, db.balanceOf(from)) );
             require( ico(icoAddr).setInterestDB(to, db.balanceOf(to)) );
         }
-        require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(from, to, amount) );
+        require( moduleHandler(moduleHandlerAddress).broadcastTransfer(from, to, amount) );
     }
     
     /**
@@ -351,7 +351,7 @@ contract token is safeMath, module, announcementTypes {
             
             @success    Was the Function successful?
         */
-        require( super._isModuleHandler(msg.sender) );
+        require( super.isModuleHandler(msg.sender) );
         _processTransactionFee(owner, value);
         return true;
     }
@@ -371,7 +371,7 @@ contract token is safeMath, module, announcementTypes {
         uint256 _forSchelling = _fee - _forBurn;
         bool _found;
         address _schellingAddr;
-        (_success, _found, _schellingAddr) = moduleHandler(super._getModuleHandlerAddress()).getModuleAddressByName('Schelling');
+        (_success, _found, _schellingAddr) = moduleHandler(moduleHandlerAddress).getModuleAddressByName('Schelling');
         require( _success );
         if ( _schellingAddr != 0x00 && _found) {
             require( db.decrease(owner, _forSchelling) );
@@ -379,7 +379,7 @@ contract token is safeMath, module, announcementTypes {
             _burn(owner, _forBurn);
             bytes memory _data;
             Transfer(owner, _schellingAddr, _forSchelling, _data);
-            require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(owner, _schellingAddr, _forSchelling) );
+            require( moduleHandler(moduleHandlerAddress).broadcastTransfer(owner, _schellingAddr, _forSchelling) );
         } else {
             _burn(owner, _fee);
         }
@@ -409,7 +409,7 @@ contract token is safeMath, module, announcementTypes {
             
             @success    Was the Function successful?
         */
-        require( super._isModuleHandler(msg.sender) || msg.sender == icoAddr );
+        require( super.isModuleHandler(msg.sender) || msg.sender == icoAddr );
         _mint(owner, value);
         return true;
     }
@@ -422,7 +422,7 @@ contract token is safeMath, module, announcementTypes {
             @value     Quantity
         */
         require( db.increase(owner, value) );
-        require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(0x00, owner, value) );
+        require( moduleHandler(moduleHandlerAddress).broadcastTransfer(0x00, owner, value) );
         if ( isICO ) {
             require( ico(icoAddr).setInterestDB(owner, db.balanceOf(owner)) );
         }
@@ -438,7 +438,7 @@ contract token is safeMath, module, announcementTypes {
             
             @success    Was the Function successful?
         */
-        require( super._isModuleHandler(msg.sender) );
+        require( super.isModuleHandler(msg.sender) );
         _burn(owner, value);
         return true;
     }
@@ -451,7 +451,7 @@ contract token is safeMath, module, announcementTypes {
             @value     Quantity
         */
         require( db.decrease(owner, value) );
-        require( moduleHandler(super._getModuleHandlerAddress()).broadcastTransfer(owner, 0x00, value) );
+        require( moduleHandler(moduleHandlerAddress).broadcastTransfer(owner, 0x00, value) );
         Burn(owner, value);
     }
     
@@ -499,7 +499,7 @@ contract token is safeMath, module, announcementTypes {
             
             @success    Was the Function successful?
         */
-        require( super._isModuleHandler(msg.sender) );
+        require( super.isModuleHandler(msg.sender) );
         if      ( aType == announcementType.transactionFeeRate )    { transactionFeeRate = value; }
         else if ( aType == announcementType.transactionFeeMin )     { transactionFeeMin = value; }
         else if ( aType == announcementType.transactionFeeMax )     { transactionFeeMax = value; }
