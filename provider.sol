@@ -9,13 +9,13 @@ contract provider is module, safeMath, announcementTypes {
     /*
         module callbacks
     */
-    function connectModule() external returns (bool) {
-        require( super._connectModule() );
-        var (_success, currentSchellingRound) = moduleHandler(super._getModuleHandlerAddress()).getCurrentSchellingRoundID();
+    function connectModule() external returns (bool success) {
+        super._connectModule();
+        var (_success, currentSchellingRound) = moduleHandler(moduleHandlerAddress).getCurrentSchellingRoundID();
         require( _success );
         return true;
     }
-    function transferEvent(address from, address to, uint256 value) external returns (bool) {
+    function transferEvent(address from, address to, uint256 value) external returns (bool success) {
         /*
             Transaction completed. This function is ony available for the modulehandler.
             It should be checked if the sender or the acceptor does not connect to the provider or it is not a provider itself if so than the change should be recorded.
@@ -25,12 +25,12 @@ contract provider is module, safeMath, announcementTypes {
             @value      amount
             @bool       Was the function successful?
         */
-        require( super._isModuleHandler(msg.sender) );
+        require( super.isModuleHandler(msg.sender) );
         transferEvent_(from, value, true);
         transferEvent_(to, value, false);
         return true;
     }
-    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external returns (bool) {
+    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external returns (bool success) {
         /*
             New schelling round. This function is only available for the moduleHandler.
             We are recording the new schelling round and we are storing the whole current quantity of the tokens.
@@ -40,16 +40,16 @@ contract provider is module, safeMath, announcementTypes {
             @reward         token emission 
             @bool           Was the function successful?
         */
-        require( super._isModuleHandler(msg.sender) );
+        require( super.isModuleHandler(msg.sender) );
         globalFunds[roundID].reward = reward;
         globalFunds[roundID].supply = globalFunds[roundID-1].supply;
         currentSchellingRound = roundID;
-        require( moduleHandler(super._getModuleHandlerAddress()).mint(address(this), reward) );
+        require( moduleHandler(moduleHandlerAddress).mint(address(this), reward) );
         return true;
     }
     modifier isReady {
-        var (success, active) = super.isActive();
-        require( success && active ); 
+        var (_success, _active) = super.isActive();
+        require( _success && _active ); 
         _;
     }
     /*
@@ -123,7 +123,7 @@ contract provider is module, safeMath, announcementTypes {
             
             @_moduleHandler     Address of the moduleHandler.
         */
-        require( super._registerModuleHandler(_moduleHandler) );
+        super.registerModuleHandler(_moduleHandler);
     }
     function configure(announcementType a, uint256 b) external returns(bool) {
         /*
@@ -132,7 +132,7 @@ contract provider is module, safeMath, announcementTypes {
             @a      Type of the setting
             @b      value
         */
-        require( super._isModuleHandler(msg.sender) );
+        require( super.isModuleHandler(msg.sender) );
         if      ( a == announcementType.providerPublicFunds )          { minFundsForPublic = b; }
         else if ( a == announcementType.providerPrivateFunds )         { minFundsForPrivate = b; }
         else if ( a == announcementType.providerPrivateClientLimit )   { privateProviderLimit = b; }
@@ -425,7 +425,7 @@ contract provider is module, safeMath, announcementTypes {
                      providers[provider].data[currHeight].clientsCount < privateProviderLimit );
         }
         var bal = getTokenBalance(msg.sender);
-        require( moduleHandler(super._getModuleHandlerAddress()).processTransactionFee(msg.sender, bal) );
+        require( moduleHandler(moduleHandlerAddress).processTransactionFee(msg.sender, bal) );
         
         checkFloatingSupply(provider, currHeight, false, bal);
         providers[provider].data[currHeight].clientsCount++;
@@ -516,10 +516,10 @@ contract provider is module, safeMath, announcementTypes {
             throw;
         }
         if ( clientReward > 0 ) {
-            require( moduleHandler(super._getModuleHandlerAddress()).transfer(address(this), _beneficiary, clientReward, false) );
+            require( moduleHandler(moduleHandlerAddress).transfer(address(this), _beneficiary, clientReward, false) );
         }
         if ( providerReward > 0 ) {
-            require( moduleHandler(super._getModuleHandlerAddress()).transfer(address(this), provider, providerReward, false) );
+            require( moduleHandler(moduleHandlerAddress).transfer(address(this), provider, providerReward, false) );
         }
         EReward(msg.sender, provider, clientReward, providerReward);
     }
@@ -773,7 +773,7 @@ contract provider is module, safeMath, announcementTypes {
             
             @balance    Balance of the address.
         */
-        var (_success, _balance) = moduleHandler(super._getModuleHandlerAddress()).balanceOf(addr);
+        var (_success, _balance) = moduleHandler(moduleHandlerAddress).balanceOf(addr);
         require( _success );
         return _balance;
     }
@@ -783,7 +783,7 @@ contract provider is module, safeMath, announcementTypes {
             
             @isICO      Is the ICO in proccess or not?
         */
-        var (_success, _isICO) = moduleHandler(super._getModuleHandlerAddress()).isICO();
+        var (_success, _isICO) = moduleHandler(moduleHandlerAddress).isICO();
         require( _success );
         return _isICO;
     }
