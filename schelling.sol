@@ -135,8 +135,7 @@ contract schelling is module, announcementTypes, schellingVars {
     */
     function replaceModule(address addr) external returns (bool) {
         require( db.replaceOwner(addr) );
-        require( moduleHandler(super._getModuleHandlerAddress()).transfer(address(this), addr, getTokenBalance(address(this)), false) );
-        require( super._replaceModule(addr) );
+        super._replaceModule(addr);
         return true;
     }
     function transferEvent(address from, address to, uint256 value) external returns (bool) {
@@ -149,7 +148,7 @@ contract schelling is module, announcementTypes, schellingVars {
             @value     Amount
             @bool      Was the transaction succesfull?
         */
-        require( super._isModuleHandler(msg.sender) );
+        require( super.isModuleHandler(msg.sender) );
         if ( to == address(this) ) {
             var currentRound = getCurrentRound();
             var round = getRound(currentRound);
@@ -159,8 +158,8 @@ contract schelling is module, announcementTypes, schellingVars {
         return true;
     }
     modifier isReady {
-        var (success, active) = super.isActive();
-        require( success && active ); 
+        var (_success, _active) = super.isActive();
+        require( _success && _active ); 
         _;
     }
     /*
@@ -257,7 +256,7 @@ contract schelling is module, announcementTypes, schellingVars {
             @_icoExpansionAddress   This address can turn schelling runds during ICO.
         */
         db = schellingDB(_db);
-        require( super._registerModuleHandler(_moduleHandler) );
+        super.registerModuleHandler(_moduleHandler);
         if ( ! _forReplace ) {
             require( db.replaceOwner(this) );
         }
@@ -269,7 +268,7 @@ contract schelling is module, announcementTypes, schellingVars {
             @a      Sort of configuration
             @b      Value
         */
-        require( super._isModuleHandler(msg.sender) );
+        require( super.isModuleHandler(msg.sender) );
         if      ( a == announcementType.schellingRoundBlockDelay )     { roundBlockDelay = b; }
         else if ( a == announcementType.schellingCheckRounds )         { interestCheckRounds = uint8(b); }
         else if ( a == announcementType.schellingCheckAboves )         { interestCheckAboves = uint8(b); }
@@ -351,7 +350,7 @@ contract schelling is module, announcementTypes, schellingVars {
             }
         } else { lostEverything = true; }
         if ( lostEverything ) {
-            require( moduleHandler(super._getModuleHandlerAddress()).burn(address(this), funds) );
+            require( moduleHandler(moduleHandlerAddress).burn(address(this), funds) );
             delete funds;
             delete voter.status;
         }
@@ -384,7 +383,7 @@ contract schelling is module, announcementTypes, schellingVars {
             if ( isWinner(round, voter.voteResult) && voter.status == voterStatus.afterSendVoteOk ) {
                 voter.rewards += funds * round.reward / getRoundWeight(round.totalAboveWeight, round.totalBelowWeight);
             } else {
-                require( moduleHandler(super._getModuleHandlerAddress()).burn(address(this), funds) );
+                require( moduleHandler(moduleHandlerAddress).burn(address(this), funds) );
                 delete funds;
             }
             delete voter.status;
@@ -413,7 +412,7 @@ contract schelling is module, announcementTypes, schellingVars {
         require( voter.status == voterStatus.base );
         reward = voter.rewards;
         delete voter.rewards;
-        require( moduleHandler(super._getModuleHandlerAddress()).transfer(address(this), _beneficiary, reward, false) );
+        require( moduleHandler(moduleHandlerAddress).transfer(address(this), _beneficiary, reward, false) );
             
         setVoter(msg.sender, voter);
     }
@@ -457,7 +456,7 @@ contract schelling is module, announcementTypes, schellingVars {
         
         pushRound(newRound);
         setSchellingExpansion(currentSchellingRound, expansion);
-        require( moduleHandler(super._getModuleHandlerAddress()).broadcastSchellingRound(currentSchellingRound, expansion) );
+        require( moduleHandler(moduleHandlerAddress).broadcastSchellingRound(currentSchellingRound, expansion) );
         return true;
     }
     function addFunds(uint256 amount) isReady noContract external {
@@ -472,11 +471,11 @@ contract schelling is module, announcementTypes, schellingVars {
         var voter = getVoter(msg.sender);
         var funds = getFunds(msg.sender);
         
-        var (a, b) = moduleHandler(super._getModuleHandlerAddress()).isICO();
+        var (a, b) = moduleHandler(moduleHandlerAddress).isICO();
         require( b && b );
         require( voter.status == voterStatus.base );
         require( amount > 0 );
-        require( moduleHandler(super._getModuleHandlerAddress()).transfer(msg.sender, address(this), amount, true) );
+        require( moduleHandler(moduleHandlerAddress).transfer(msg.sender, address(this), amount, true) );
         funds += amount;
         
         setFunds(msg.sender, funds);
@@ -494,7 +493,7 @@ contract schelling is module, announcementTypes, schellingVars {
         require( voter.status == voterStatus.base );
         setFunds(msg.sender, 0);
         
-        require( moduleHandler(super._getModuleHandlerAddress()).transfer(address(this), msg.sender, funds, true) );
+        require( moduleHandler(moduleHandlerAddress).transfer(address(this), msg.sender, funds, true) );
     }
     function getCurrentSchellingRoundID() public constant returns (uint256) {
         /*
@@ -550,7 +549,7 @@ contract schelling is module, announcementTypes, schellingVars {
             
             @uint256        Whole token amount
         */
-        var (_success, _amount) = moduleHandler(super._getModuleHandlerAddress()).totalSupply();
+        var (_success, _amount) = moduleHandler(moduleHandlerAddress).totalSupply();
         require( _success );
         return _amount;
     }
@@ -563,7 +562,7 @@ contract schelling is module, announcementTypes, schellingVars {
             
             @balance    Balance of the address.
         */
-        var (_success, _balance) = moduleHandler(super._getModuleHandlerAddress()).balanceOf(addr);
+        var (_success, _balance) = moduleHandler(moduleHandlerAddress).balanceOf(addr);
         require( _success );
         return _balance;
     }
