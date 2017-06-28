@@ -1,28 +1,8 @@
 pragma solidity ^0.4.11;
 
 import "safeMath.sol";
-
-contract token {
-    function transfer(address _to, uint256 _amount) external returns (bool) {}
-    function transferFrom(address _from, address _to, uint256 _amount) external returns (bool) {}
-    function getTransactionFee(uint256 value) public constant returns (uint256 fee) {}
-    function balanceOf(address _owner) constant returns (uint256 _value) {}
-}
-
-contract owned {
-    address public owner = msg.sender;
-    
-    function replaceOwner(address newOwner) external returns(bool) {
-        /*
-            Changing the owner.
-            
-            @newOwner The address of the new owner.
-        */
-        require( msg.sender == owner );
-        owner = newOwner;
-        return true;
-    }
-}
+import "owned.sol";
+import "token.sol";
 
 contract exchange is owned, safeMath {
     uint256 public fee = 250;
@@ -95,7 +75,7 @@ contract exchange is owned, safeMath {
             @value      Value.
             @addr       address.
         */
-        require( msg.sender == owner );
+        require( isOwner() );
         if ( typ == confTypes.fee ) {
             fee = value;
         } else if ( typ == confTypes.feeM ) {
@@ -116,7 +96,7 @@ contract exchange is owned, safeMath {
             After this just the positions should be closed and transfered from the account.
             This is irreversible.
         */
-        require( msg.sender == owner );
+        require( isOwner() );
         disabled = true;
     }
     function nomraliseRate(uint256 rate) internal returns (uint256 nRate) {
@@ -740,7 +720,7 @@ contract exchange is owned, safeMath {
         */
         Token = balance[Address].t;
         Ether = balance[Address].e;
-        if ( msg.sender == owner ) {
+        if ( isOwner() ) {
             uint256 bal = corion.balanceOf(address(this));
             if ( bal >= exchangeTokenBalance ) {
                 Token += corion.balanceOf(address(this)) - exchangeTokenBalance;

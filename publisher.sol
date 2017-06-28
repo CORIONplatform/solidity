@@ -14,7 +14,7 @@ contract publisher is announcementTypes, module, safeMath {
             Transaction completed. This function is available only for moduleHandler
             If a transaction is carried out from or to an address which participated in the objection of an announcement, its objection purport is automatically set
         */
-        require( super._isModuleHandler(msg.sender) );
+        require( super.isModuleHandler(msg.sender) );
         uint256 announcementID;
 		uint256 a;
         for ( a=0 ; a<opponents[from].announcements.length ; a++ ) {
@@ -34,8 +34,8 @@ contract publisher is announcementTypes, module, safeMath {
         return true;
     }
     modifier isReady {
-        var (success, active) = super.isActive();
-        require( success && active ); 
+        var (_success, _active) = super.isActive();
+        require( _success && _active ); 
         _;
     }
     
@@ -79,7 +79,7 @@ contract publisher is announcementTypes, module, safeMath {
             
             @moduleHandler      Address of moduleHandler
         */
-        require( super._registerModuleHandler(moduleHandler) );
+        super.registerModuleHandler(moduleHandler);
         owner = msg.sender;
         admins[msg.sender] = true;
     }
@@ -143,7 +143,7 @@ contract publisher is announcementTypes, module, safeMath {
             @success        Opposed or not
         */
         if ( ! oppositable ) { return false; }
-        var (_success, _amount) = moduleHandler(super._getModuleHandlerAddress()).totalSupply();
+        var (_success, _amount) = moduleHandler(moduleHandlerAddress).totalSupply();
         require( _success );
         return _amount * oppositeRate / 100 > weight;
     }
@@ -193,18 +193,18 @@ contract publisher is announcementTypes, module, safeMath {
         if ( ! checkOpposited(announcements[id].oppositionWeight, announcements[id].oppositable) ) {
             announcements[id].result = true;
             if ( announcements[id].Type == announcementType.newModule ) {
-                require( moduleHandler(super._getModuleHandlerAddress()).newModule(announcements[id]._str, announcements[id]._addr, true, true) );
+                require( moduleHandler(moduleHandlerAddress).newModule(announcements[id]._str, announcements[id]._addr, true, true) );
             } else if ( announcements[id].Type == announcementType.dropModule ) {
-                require( moduleHandler(super._getModuleHandlerAddress()).dropModule(announcements[id]._str) );
+                require( moduleHandler(moduleHandlerAddress).dropModule(announcements[id]._str) );
             } else if ( announcements[id].Type == announcementType.replaceModule ) {
-                require( moduleHandler(super._getModuleHandlerAddress()).replaceModule(announcements[id]._str, announcements[id]._addr) );
+                require( moduleHandler(moduleHandlerAddress).replaceModule(announcements[id]._str, announcements[id]._addr) );
             } else if ( announcements[id].Type == announcementType.replaceModuleHandler) {
-                require( moduleHandler(super._getModuleHandlerAddress()).replaceModuleHandler(announcements[id]._addr) );
+                require( moduleHandler(moduleHandlerAddress).replaceModuleHandler(announcements[id]._addr) );
             } else if ( announcements[id].Type == announcementType.transactionFeeRate || 
                         announcements[id].Type == announcementType.transactionFeeMin || 
                         announcements[id].Type == announcementType.transactionFeeMax || 
                         announcements[id].Type == announcementType.transactionFeeBurn ) {
-                require( moduleHandler(super._getModuleHandlerAddress()).configureToken(announcements[id].Type, announcements[id]._uint) );
+                require( moduleHandler(moduleHandlerAddress).configureToken(announcements[id].Type, announcements[id]._uint) );
             } else if ( announcements[id].Type == announcementType.providerPublicFunds || 
                         announcements[id].Type == announcementType.providerPrivateFunds || 
                         announcements[id].Type == announcementType.providerPrivateClientLimit || 
@@ -215,12 +215,12 @@ contract publisher is announcementTypes, module, safeMath {
                         announcements[id].Type == announcementType.providerGasProtect || 
                         announcements[id].Type == announcementType.providerInterestMinFunds || 
                         announcements[id].Type == announcementType.providerRentRate ) {
-                require( moduleHandler(super._getModuleHandlerAddress()).configureProvider(announcements[id].Type, announcements[id]._uint) );
+                require( moduleHandler(moduleHandlerAddress).configureProvider(announcements[id].Type, announcements[id]._uint) );
             } else if ( announcements[id].Type == announcementType.schellingRoundBlockDelay || 
                         announcements[id].Type == announcementType.schellingCheckRounds || 
                         announcements[id].Type == announcementType.schellingCheckAboves || 
                         announcements[id].Type == announcementType.schellingRate ) {
-                require( moduleHandler(super._getModuleHandlerAddress()).configureSchelling(announcements[id].Type, announcements[id]._uint) );
+                require( moduleHandler(moduleHandlerAddress).configureSchelling(announcements[id].Type, announcements[id]._uint) );
             } else if ( announcements[id].Type == announcementType.publisherMinAnnouncementDelay) {
                 minAnnouncementDelay = announcements[id]._uint;
             } else if ( announcements[id].Type == announcementType.publisherOppositeRate) {
@@ -248,7 +248,7 @@ contract publisher is announcementTypes, module, safeMath {
         for ( uint256 a=0 ; a<opponents[msg.sender].announcements.length ; a++ ) {
                require( opponents[msg.sender].announcements[a] != id );
         }
-        var (_success, _balance) = moduleHandler(super._getModuleHandlerAddress()).balanceOf(msg.sender);
+        var (_success, _balance) = moduleHandler(moduleHandlerAddress).balanceOf(msg.sender);
         require( _success );
         require( _balance > 0);
         opponents[msg.sender].weight = _balance;
@@ -287,7 +287,7 @@ contract publisher is announcementTypes, module, safeMath {
             Inner function to check the ICO status.
             @bool       Is the ICO in proccess or not?
         */
-        var (_success, _isICO) = moduleHandler(super._getModuleHandlerAddress()).isICO();
+        var (_success, _isICO) = moduleHandler(moduleHandlerAddress).isICO();
         require( _success );
         return _isICO;
     }

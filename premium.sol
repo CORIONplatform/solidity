@@ -14,12 +14,12 @@ contract ptokenDB is tokenDB {}
 contract premium is module, safeMath {
     function replaceModule(address addr) external returns (bool success) {
         require( db.replaceOwner(addr) );
-        require( super._replaceModule(addr) );
+        super._replaceModule(addr);
         return true;
     }
     modifier isReady {
-        var (success, active) = super.isActive();
-        require( success && active ); 
+        var (_success, _active) = super.isActive();
+        require( _success && _active ); 
         _;
     }
     /**
@@ -51,7 +51,7 @@ contract premium is module, safeMath {
             @genesisAddr        Array of the genesis addresses.
             @genesisValue       Array of the balance of the genesis addresses
         */
-        require( super._registerModuleHandler(moduleHandler) );
+        super.registerModuleHandler(moduleHandler);
         require( dbAddress != 0x00 );
         db = ptokenDB(dbAddress);
         if ( ! forReplace ) {
