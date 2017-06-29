@@ -1,9 +1,9 @@
 pragma solidity ^0.4.11;
 
-import "safeMath.sol";
-import "token.sol";
-import "premium.sol";
-import "moduleHandler.sol";
+import "browser/safeMath.sol";
+import "browser/token.sol";
+import "browser/premium.sol";
+import "browser/moduleHandler.sol";
 
 contract ico is safeMath {
     
