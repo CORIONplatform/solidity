@@ -1,9 +1,9 @@
 pragma solidity ^0.4.11;
 
-import "module.sol";
-import "moduleHandler.sol";
-import "safeMath.sol";
-import "announcementTypes.sol";
+import "browser/module.sol";
+import "browser/moduleHandler.sol";
+import "browser/safeMath.sol";
+import "browser/announcementTypes.sol";
 
 contract provider is module, safeMath, announcementTypes {
     /*
