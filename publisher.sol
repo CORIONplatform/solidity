@@ -101,7 +101,7 @@ contract publisher is announcementTypes, module, safeMath {
         _addr = announcements[id]._addr;
     }
     
-    function checkOpposited(uint256 weight, bool oppositable) internal returns (bool success) {
+    function checkOpposited(uint256 weight, bool oppositable) public constant returns (bool success) {
         /*
             Veto check
             
