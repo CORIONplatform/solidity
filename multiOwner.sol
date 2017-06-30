@@ -21,12 +21,12 @@ contract multiOwner is safeMath {
         Externals
     */
     function insertOwner(address addr) external {
-        if ( insertAndCheckDo(calcDoHash("insertOwner", bytes32(addr))) ) {
+        if ( insertAndCheckDo(calcDoHash("insertOwner", sha3(addr))) ) {
             _addOwner(addr);
         }
     }
     function dropOwner(address addr) external {
-        if ( insertAndCheckDo(calcDoHash("dropOwner", bytes32(addr))) ) {
+        if ( insertAndCheckDo(calcDoHash("dropOwner", sha3(addr))) ) {
             _delOwner(addr);
         }
     }
