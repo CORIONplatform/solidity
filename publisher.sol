@@ -18,18 +18,16 @@ contract publisher is announcementTypes, module, safeMath {
         uint256 announcementID;
 		uint256 a;
 		// need reverse lookup
-        for ( a=0 ; a<opponents[from].announcements.length ; a++ ) {
-            announcementID = opponents[msg.sender].announcements[a];
+        for ( a=0 ; a<opponents[from].length ; a++ ) {
+            announcementID = opponents[msg.sender][a];
             if ( announcements[announcementID].end < block.number && announcements[announcementID].open ) {
                 announcements[announcementID].oppositionWeight = safeSub(announcements[a].oppositionWeight, value);
-                opponents[from].weight = safeSub(opponents[from].weight, value);
             }
         }
-        for ( a=0 ; a<opponents[to].announcements.length ; a++ ) {
-            announcementID = opponents[msg.sender].announcements[a];
+        for ( a=0 ; a<opponents[to].length ; a++ ) {
+            announcementID = opponents[msg.sender][a];
             if ( announcements[announcementID].end < block.number && announcements[announcementID].open ) {
                 announcements[announcementID].oppositionWeight = safeAdd(announcements[a].oppositionWeight, value);
-                opponents[to].weight = safeAdd(opponents[to].weight, value);
             }
         }
         return true;
@@ -61,11 +59,7 @@ contract publisher is announcementTypes, module, safeMath {
     mapping(uint256 => announcements_s) public announcements;
     uint256 announcementsLength = 1;
     
-    struct opponents_s {
-        uint256[] announcements;
-        uint256 weight;
-    }
-    mapping (address => opponents_s) public opponents;
+    mapping (address => uint256[]) public opponents;
     
     function publisher(address moduleHandler) {
         /*
@@ -221,10 +215,10 @@ contract publisher is announcementTypes, module, safeMath {
         bool foundEmptyArrayID = false;
         require( announcements[id].open );
         require( announcements[id].oppositable );
-        for ( uint256 a=0 ; a<opponents[msg.sender].announcements.length ; a++ ) {
-            require( opponents[msg.sender].announcements[a] != id );
-            if ( ! announcements[opponents[msg.sender].announcements[a]].open) {
-                delete opponents[msg.sender].announcements[a];
+        for ( uint256 a=0 ; a<opponents[msg.sender].length ; a++ ) {
+            require( opponents[msg.sender][a] != id );
+            if ( ! announcements[opponents[msg.sender][a]].open) {
+                delete opponents[msg.sender][a];
                 if ( ! foundEmptyArrayID ) {
                     foundEmptyArrayID = true;
                     newArrayID = a;
@@ -239,11 +233,10 @@ contract publisher is announcementTypes, module, safeMath {
         require( _success );
         require( _balance > 0);
         if ( foundEmptyArrayID ) {
-            opponents[msg.sender].announcements[newArrayID] = id;
+            opponents[msg.sender][newArrayID] = id;
         } else {
-            opponents[msg.sender].announcements.push(id);
+            opponents[msg.sender].push(id);
         }
-        opponents[msg.sender].weight = _balance;
         announcements[id].oppositionWeight += _balance;
         EOppositeAnnouncement(id, msg.sender, _balance);
     }
