@@ -33,7 +33,7 @@ contract module {
             @forever    For forever or not
         */
         if ( forever ) { moduleStatus = status.Disabled; }
-        disabledUntil = block.number + 40320;
+        else { disabledUntil = block.number + 5760; }
     }
     
     function replaceModuleHandler(address newModuleHandlerAddress) external onlyForModuleHandler returns (bool success) {
