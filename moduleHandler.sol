@@ -33,7 +33,7 @@ contract moduleHandler is multiOwner, announcementTypes {
     
     modules_s[] public modules;
     address public foundationAddress;
-    bool debugMode = true;
+    uint256 debugModeUntil = block.number + 1000000;
     
     function load(address foundation, bool forReplace, address Token, address Premium, address Publisher, address Schelling, address Provider) {
         /*
@@ -149,7 +149,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
-            require( debugMode );
+            require( block.number < debugModeUntil );
             if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name,addr))) ) {
                 return true;
             }
@@ -174,7 +174,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
-            require( debugMode );
+            require( block.number < debugModeUntil );
             if ( ! insertAndCheckDo(calcDoHash("newModule", sha3(name, addr, schellingEvent, transferEvent))) ) {
                 return true;
             }
@@ -192,7 +192,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
-            require( debugMode );
+            require( block.number < debugModeUntil );
             if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name))) ) {
                 return true;
             }
@@ -256,7 +256,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
-            require( debugMode );
+            require( block.number < debugModeUntil );
             if ( ! insertAndCheckDo(calcDoHash("replaceModuleHandler", sha3(newHandler))) ) {
                 return true;
             }
@@ -386,7 +386,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
-            require( debugMode );
+            require( block.number < debugModeUntil );
             if ( ! insertAndCheckDo(calcDoHash("configureModule", sha3(moduleName, aType, value))) ) {
                 return true;
             }
