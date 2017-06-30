@@ -1,10 +1,10 @@
 pragma solidity ^0.4.11;
 
-import "announcementTypes.sol";
-import "safeMath.sol";
-import "module.sol";
-import "moduleHandler.sol";
-import "tokenDB.sol";
+import "browser/announcementTypes.sol";
+import "browser/safeMath.sol";
+import "browser/module.sol";
+import "browser/moduleHandler.sol";
+import "browser/tokenDB.sol";
 
 contract thirdPartyContractAbstract {
     function receiveCorionToken(address, uint256, bytes) external returns (bool, uint256) {}
