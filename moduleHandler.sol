@@ -2,7 +2,7 @@ pragma solidity ^0.4.11;
 
 import "browser/module.sol";
 import "browser/announcementTypes.sol";
-import "browser/owned.sol";
+import "browser/multiOwner.sol";
 
 import "browser/publisher.sol";
 import "browser/token.sol";
@@ -22,7 +22,7 @@ contract abstractModule {
     function newSchellingRoundEvent(uint256 roundID, uint256 reward) external returns (bool success) {}
 }
 
-contract moduleHandler is owned, announcementTypes {
+contract moduleHandler is multiOwner, announcementTypes {
     
     struct modules_s {
         address addr;
@@ -33,6 +33,7 @@ contract moduleHandler is owned, announcementTypes {
     
     modules_s[] public modules;
     address public foundationAddress;
+    bool debugMode = true;
     
     function load(address foundation, bool forReplace, address Token, address Premium, address Publisher, address Schelling, address Provider) {
         /*
@@ -48,7 +49,7 @@ contract moduleHandler is owned, announcementTypes {
             @Schelling      address of Schelling.
             @Provider       address of provider
         */
-        require( super.isOwner() );
+        require( owners[msg.sender] );
         require( modules.length == 0 );
         foundationAddress = foundation;
         addModule( modules_s(Token,      sha3('Token'),      false, false),  ! forReplace);
@@ -146,7 +147,13 @@ contract moduleHandler is owned, announcementTypes {
             @bool       Was there any result or not.
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
-        require( _success && _found && modules[_id].name == sha3('Publisher') );
+        require( _success );
+        if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
+            require( debugMode );
+            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name,addr))) ) {
+                return true;
+            }
+        }
         (_success, _found, _id) = getModuleIDByName(name);
         require( _success && _found );
         require( abstractModule(modules[_id].addr).replaceModule(addr) );
@@ -165,7 +172,13 @@ contract moduleHandler is owned, announcementTypes {
             @bool               Was there any result or not.
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
-        require( _success && _found && modules[_id].name == sha3('Publisher') );
+        require( _success );
+        if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
+            require( debugMode );
+            if ( ! insertAndCheckDo(calcDoHash("newModule", sha3(name, addr, schellingEvent, transferEvent))) ) {
+                return true;
+            }
+        }
         addModule( modules_s(addr, sha3(name), schellingEvent, transferEvent), true);
         return true;
     }
@@ -177,7 +190,13 @@ contract moduleHandler is owned, announcementTypes {
             @bool   Was the function successfull?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
-        require( _success && _found && modules[_id].name == sha3('Publisher') );
+        require( _success );
+        if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
+            require( debugMode );
+            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name))) ) {
+                return true;
+            }
+        }
         (_success, _found, _id) = getModuleIDByName(name);
         require( _success && _found );
         abstractModule(modules[_id].addr).disableModule(true);
@@ -235,7 +254,13 @@ contract moduleHandler is owned, announcementTypes {
             @bool           Was the function successfull?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
-        require( _success && _found && modules[_id].name == sha3('Publisher') );
+        require( _success );
+        if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
+            require( debugMode );
+            if ( ! insertAndCheckDo(calcDoHash("replaceModuleHandler", sha3(newHandler))) ) {
+                return true;
+            }
+        }
         for ( uint256 a=0 ; a<modules.length ; a++ ) {
             require( abstractModule(modules[a].addr).replaceModuleHandler(newHandler) );
         }
@@ -349,47 +374,24 @@ contract moduleHandler is owned, announcementTypes {
         require( token(modules[_id].addr).burn(from, value) );
         return true;
     }
-    function configureToken(announcementType aType, uint256 value) external returns (bool success) {
+    function configureModule(string moduleName, announcementType aType, uint256 value) external returns (bool success) {
         /*
-            Changing token configuration. Can be called only by Publisher.
+            Changing configuration of a module. Can be called only by Publisher or while debug mode by owners.
             
+            @moduleName Module name which will be configured
             @aType      Type of variable (announcementType).
             @value      New value
             @success    Was the function successfull?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
-        require( _success && _found && modules[_id].name == sha3('Publisher') );
-        (_success, _found, _id) = getModuleIDByName('Token');
-        require( _success && _found );
-        require( token(modules[_id].addr).configure(aType, value) );
-        return true;
-    }
-    function configureProvider(announcementType aType, uint256 value) external returns (bool success) {
-        /*
-            Changing configuration of provider. Can be called only by provider
-            
-            @aType      Type of variable (announcementType).
-            @value      New value
-            @success    Was the function successfull?
-        */
-        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
-        require( _success && _found && modules[_id].name == sha3('Publisher') );
-        (_success, _found, _id) = getModuleIDByName('Provider');
-        require( _success && _found );
-        require( provider(modules[_id].addr).configure(aType, value) );
-        return true;
-    }
-    function configureSchelling(announcementType aType, uint256 value) external returns (bool success) {
-        /*
-            Changing configuration of Schelling. Can be called only by Publisher.
-            
-            @aType      Type of variable (announcementType).
-            @value      New value
-            @success    Was the function successfull?
-        */
-        var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
-        require( _success && _found && modules[_id].name == sha3('Publisher') );
-        (_success, _found, _id) = getModuleIDByName('Schelling');
+        require( _success );
+        if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
+            require( debugMode );
+            if ( ! insertAndCheckDo(calcDoHash("configureModule", sha3(moduleName, aType, value))) ) {
+                return true;
+            }
+        }
+        (_success, _found, _id) = getModuleIDByName(moduleName);
         require( _success && _found );
         require( schelling(modules[_id].addr).configure(aType, value) );
         return true;
@@ -401,7 +403,12 @@ contract moduleHandler is owned, announcementTypes {
             
             @forever    Is it forever or not?
         */
-        require( super.isOwner() );
+        require( owners[msg.sender] );
+        if ( forever ) {
+            if ( ! insertAndCheckDo(calcDoHash("freezing", sha3(forever))) ) {
+                return;
+            }            
+        }
         for ( uint256 a=0 ; a<modules.length ; a++ ) {
             require( abstractModule(modules[a].addr).disableModule(forever) );
         }
