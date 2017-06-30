@@ -17,38 +17,29 @@ contract publisher is announcementTypes, module, safeMath {
         require( super.isModuleHandler(msg.sender) );
         uint256 announcementID;
 		uint256 a;
-        for ( a=0 ; a<opponents[from].announcements.length ; a++ ) {
-            announcementID = opponents[msg.sender].announcements[a];
+		// need reverse lookup
+        for ( a=0 ; a<opponents[from].length ; a++ ) {
+            announcementID = opponents[msg.sender][a];
             if ( announcements[announcementID].end < block.number && announcements[announcementID].open ) {
                 announcements[announcementID].oppositionWeight = safeSub(announcements[a].oppositionWeight, value);
-                opponents[from].weight = safeSub(opponents[from].weight, value);
             }
         }
-        for ( a=0 ; a<opponents[to].announcements.length ; a++ ) {
-            announcementID = opponents[msg.sender].announcements[a];
+        for ( a=0 ; a<opponents[to].length ; a++ ) {
+            announcementID = opponents[msg.sender][a];
             if ( announcements[announcementID].end < block.number && announcements[announcementID].open ) {
                 announcements[announcementID].oppositionWeight = safeAdd(announcements[a].oppositionWeight, value);
-                opponents[to].weight = safeAdd(opponents[to].weight, value);
             }
         }
         return true;
-    }
-    modifier isReady {
-        var (_success, _active) = super.isActive();
-        require( _success && _active ); 
-        _;
     }
     
     /*
         Pool
     */
     
-    mapping(address => bool) private admins;
-    
     uint256 public  minAnnouncementDelay = 40320;
     uint256 public minAnnouncementDelayOnICO = 17280;
     uint8 public oppositeRate = 33;
-    address public owner;
     
     struct announcements_s {
         announcementType Type;
@@ -65,13 +56,10 @@ contract publisher is announcementTypes, module, safeMath {
         uint256 _uint;
         address _addr;
     }
-    announcements_s[] public announcements;
+    mapping(uint256 => announcements_s) public announcements;
+    uint256 announcementsLength = 1;
     
-    struct opponents_s {
-        uint256[] announcements;
-        uint256 weight;
-    }
-    mapping (address => opponents_s) public opponents;
+    mapping (address => uint256[]) public opponents;
     
     function publisher(address moduleHandler) {
         /*
@@ -80,26 +68,6 @@ contract publisher is announcementTypes, module, safeMath {
             @moduleHandler      Address of moduleHandler
         */
         super.registerModuleHandler(moduleHandler);
-        owner = msg.sender;
-        admins[msg.sender] = true;
-    }
-    
-    function addAdmin(address addr) onlyOwner external {
-        /*
-            Add Admin 
-            
-            @addr       New admin address.
-        */
-        admins[addr] = true;
-    }
-
-    function delAdmin(address addr) onlyOwner external {
-        /*
-            Remove Admin
-            
-            @addr       Address of admin to remove.
-        */
-        delete admins[addr];
     }
     
     function Announcements(uint256 id) public constant returns (uint256 Type, uint256 Start, uint256 End, bool Closed, string Announcement, string Link, bool Opposited, string _str, uint256 _uint, address _addr) {
@@ -133,7 +101,7 @@ contract publisher is announcementTypes, module, safeMath {
         _addr = announcements[id]._addr;
     }
     
-    function checkOpposited(uint256 weight, bool oppositable) internal returns (bool success) {
+    function checkOpposited(uint256 weight, bool oppositable) public constant returns (bool success) {
         /*
             Veto check
             
@@ -148,7 +116,7 @@ contract publisher is announcementTypes, module, safeMath {
         return _amount * oppositeRate / 100 > weight;
     }
     
-    function newAnnouncement(announcementType Type, string Announcement, string Link, bool Oppositable, string _str, uint256 _uint, address _addr) isReady onlyAdmin external {
+    function newAnnouncement(announcementType Type, string Announcement, string Link, bool Oppositable, string _str, uint256 _uint, address _addr) onlyOwner external {
         /*
             New announcement. Can be called  only by those in the admin list
             
@@ -163,27 +131,27 @@ contract publisher is announcementTypes, module, safeMath {
             @_uint          number box
             @_addr          address box
         */
-        announcements_s memory _tmpAnnouncement;
-        _tmpAnnouncement.Type = Type;
-        _tmpAnnouncement.start = block.number;
+        announcementsLength++;
+        announcements[announcementsLength].Type = Type;
+        announcements[announcementsLength].start = block.number;
         if ( checkICO() ) {
-            _tmpAnnouncement.end = block.number + minAnnouncementDelayOnICO;
+            announcements[announcementsLength].end = block.number + minAnnouncementDelayOnICO;
         } else {
-            _tmpAnnouncement.end = block.number + minAnnouncementDelay;
+            announcements[announcementsLength].end = block.number + minAnnouncementDelay;
         }
-        _tmpAnnouncement.open = true;
-        _tmpAnnouncement.announcement = Announcement;
-        _tmpAnnouncement.link = Link;
-        _tmpAnnouncement.oppositable = Oppositable;
-        _tmpAnnouncement.oppositionWeight = 0;
-        _tmpAnnouncement.result = false;
-        _tmpAnnouncement._str = _str;
-        _tmpAnnouncement._uint = _uint;
-        _tmpAnnouncement._addr = _addr;
-        ENewAnnouncement(announcements.push(_tmpAnnouncement), Type);
+        announcements[announcementsLength].open = true;
+        announcements[announcementsLength].announcement = Announcement;
+        announcements[announcementsLength].link = Link;
+        announcements[announcementsLength].oppositable = Oppositable;
+        announcements[announcementsLength].oppositionWeight = 0;
+        announcements[announcementsLength].result = false;
+        announcements[announcementsLength]._str = _str;
+        announcements[announcementsLength]._uint = _uint;
+        announcements[announcementsLength]._addr = _addr;
+        ENewAnnouncement(announcementsLength, Type);
     }
     
-    function closeAnnouncement(uint256 id) isReady onlyAdmin external {
+    function closeAnnouncement(uint256 id) onlyOwner external {
         /*
             Close announcement. It can be closed only by those in the admin list. Windup is allowed only after the announcement is completed.
             
@@ -204,7 +172,7 @@ contract publisher is announcementTypes, module, safeMath {
                         announcements[id].Type == announcementType.transactionFeeMin || 
                         announcements[id].Type == announcementType.transactionFeeMax || 
                         announcements[id].Type == announcementType.transactionFeeBurn ) {
-                require( moduleHandler(moduleHandlerAddress).configureToken(announcements[id].Type, announcements[id]._uint) );
+                require( moduleHandler(moduleHandlerAddress).configureModule("token", announcements[id].Type, announcements[id]._uint) );
             } else if ( announcements[id].Type == announcementType.providerPublicFunds || 
                         announcements[id].Type == announcementType.providerPrivateFunds || 
                         announcements[id].Type == announcementType.providerPrivateClientLimit || 
@@ -215,12 +183,12 @@ contract publisher is announcementTypes, module, safeMath {
                         announcements[id].Type == announcementType.providerGasProtect || 
                         announcements[id].Type == announcementType.providerInterestMinFunds || 
                         announcements[id].Type == announcementType.providerRentRate ) {
-                require( moduleHandler(moduleHandlerAddress).configureProvider(announcements[id].Type, announcements[id]._uint) );
+                require( moduleHandler(moduleHandlerAddress).configureModule("provider", announcements[id].Type, announcements[id]._uint) );
             } else if ( announcements[id].Type == announcementType.schellingRoundBlockDelay || 
                         announcements[id].Type == announcementType.schellingCheckRounds || 
                         announcements[id].Type == announcementType.schellingCheckAboves || 
                         announcements[id].Type == announcementType.schellingRate ) {
-                require( moduleHandler(moduleHandlerAddress).configureSchelling(announcements[id].Type, announcements[id]._uint) );
+                require( moduleHandler(moduleHandlerAddress).configureModule("schelling", announcements[id].Type, announcements[id]._uint) );
             } else if ( announcements[id].Type == announcementType.publisherMinAnnouncementDelay) {
                 minAnnouncementDelay = announcements[id]._uint;
             } else if ( announcements[id].Type == announcementType.publisherOppositeRate) {
@@ -231,7 +199,7 @@ contract publisher is announcementTypes, module, safeMath {
         announcements[id].open = false;
     }
     
-    function oppositeAnnouncement(uint256 id) isReady external {
+    function oppositeAnnouncement(uint256 id) external {
         /*
             Opposition of announcement
             If announcement is opposable, anyone owning a token can oppose it
@@ -243,20 +211,37 @@ contract publisher is announcementTypes, module, safeMath {
 
             @id     Announcement identification
         */
+        uint256 newArrayID = 0;
+        bool foundEmptyArrayID = false;
         require( announcements[id].open );
         require( announcements[id].oppositable );
-        for ( uint256 a=0 ; a<opponents[msg.sender].announcements.length ; a++ ) {
-               require( opponents[msg.sender].announcements[a] != id );
+        for ( uint256 a=0 ; a<opponents[msg.sender].length ; a++ ) {
+            require( opponents[msg.sender][a] != id );
+            if ( ! announcements[opponents[msg.sender][a]].open) {
+                delete opponents[msg.sender][a];
+                if ( ! foundEmptyArrayID ) {
+                    foundEmptyArrayID = true;
+                    newArrayID = a;
+                }
+            }
+            if ( ! foundEmptyArrayID ) {
+                foundEmptyArrayID = true;
+                newArrayID = a;
+            }
         }
         var (_success, _balance) = moduleHandler(moduleHandlerAddress).balanceOf(msg.sender);
         require( _success );
         require( _balance > 0);
-        opponents[msg.sender].weight = _balance;
+        if ( foundEmptyArrayID ) {
+            opponents[msg.sender][newArrayID] = id;
+        } else {
+            opponents[msg.sender].push(id);
+        }
         announcements[id].oppositionWeight += _balance;
         EOppositeAnnouncement(id, msg.sender, _balance);
     }
     
-    function invalidateAnnouncement(uint256 id) isReady onlyAdmin external {
+    function invalidateAnnouncement(uint256 id) onlyOwner external {
         /*
             Withdraw announcement. Only those in the admin list can withdraw it.
             
@@ -268,18 +253,12 @@ contract publisher is announcementTypes, module, safeMath {
         EInvalidateAnnouncement(id);
     }
     
-    modifier onlyAdmin() {
-        /*
-            Only those in the admin list can call it.
-        */
-        require( admins[msg.sender] ); _;
-    }
-    
     modifier onlyOwner() {
         /*
             Only the owner  is allowed to call it.      
         */
-        require( owner == msg.sender ); _;
+        require( moduleHandler(moduleHandlerAddress).owners(msg.sender) );
+        _;
     }
     
     function checkICO() internal returns (bool isICO) {
