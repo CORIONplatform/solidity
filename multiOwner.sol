@@ -51,6 +51,7 @@ contract multiOwner is safeMath {
         Internals
     */
     function insertAndCheckDo(bytes32 doHash) internal returns (bool success) {
+        require( owners[msg.sender] );
         if (doDB[doHash].length >= ownersForChange()) {
             delete doDB[doHash];
             return true;
