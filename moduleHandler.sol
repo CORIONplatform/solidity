@@ -140,26 +140,26 @@ contract moduleHandler is multiOwner, announcementTypes {
         }
         return (true, false, 0);
     }
-    function replaceModule(string name, address addr, bool _confirmation) external returns (bool success) {
+    function replaceModule(string name, address addr, bool callCallback) external returns (bool success) {
         /*
             Module replace, can be called only by the Publisher contract.
             
             @name           Name of module.
             @addr           Address of module.
             @bool           Was there any result or not.
-            @_confirmation  Call the replaceable module to confirm replacement or not.
+            @callCallback   Call the replaceable module to confirm replacement or not.
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
             require( block.number < debugModeUntil );
-            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name,addr,_confirmation))) ) {
+            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name, addr, callCallback))) ) {
                 return true;
             }
         }
         (_success, _found, _id) = getModuleIDByName(name);
         require( _success && _found );
-        if(_confirmation) {
+        if ( callCallback ) {
             require( abstractModule(modules[_id].addr).replaceModule(addr) );
         }
         require( abstractModule(addr).connectModule() );
@@ -167,12 +167,14 @@ contract moduleHandler is multiOwner, announcementTypes {
         return true;
     }
     
-    function DEBUG_triggerConfirmation(address _addr) external returns (bool _success) {
+    function callReplaceCallback(string moduleName, address newModule) external returns (bool success) {
         require( block.number < debugModeUntil );
-        if ( ! insertAndCheckDo(calcDoHash("triggerConfirmation", sha3(_addr))) ) {
+        if ( ! insertAndCheckDo(calcDoHash("callReplaceCallback", sha3(moduleName, newModule))) ) {
             return true;
         }
-        require( abstractModule(modules[_id].addr).replaceModule(addr) );
+        var (_success, _found, _id) = getModuleIDByName(moduleName);
+        require( _success);
+        require( abstractModule(modules[_id].addr).replaceModule(newModule) );
         return true;
     }
     
@@ -197,37 +199,39 @@ contract moduleHandler is multiOwner, announcementTypes {
         addModule( modules_s(addr, sha3(name), schellingEvent, transferEvent), true);
         return true;
     }
-    function dropModule(string name, bool _confirmation) external returns (bool success) {
+    function dropModule(string name, bool callCallback) external returns (bool success) {
         /*
             Deleting module from the database. Can be called only by the Publisher contract.
             
             @name           Name of module to delete.
             @bool           Was the function successfull?
-            @_confirmation  Call the replaceable module to confirm replacement or not.
+            @callCallback   Call the replaceable module to confirm replacement or not.
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
             require( block.number < debugModeUntil );
-            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name,_confirmation))) ) {
+            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name, callCallback))) ) {
                 return true;
             }
         }
         (_success, _found, _id) = getModuleIDByName(name);
         require( _success && _found );
-        if(_confirmation) {
+        if( callCallback ) {
             abstractModule(modules[_id].addr).disableModule(true);
         }
         delete modules[_id];
         return true;
     }
     
-    function DEBUG_triggerDrop(address _addr) external returns (bool _success) {
+    function callDisableCallback(string moduleName) external returns (bool success) {
         require( block.number < debugModeUntil );
-        if ( ! insertAndCheckDo(calcDoHash("triggerConfirmation", sha3(_addr))) ) {
+        if ( ! insertAndCheckDo(calcDoHash("callDisableCallback", sha3(moduleName))) ) {
             return true;
         }
-        abstractModule(modules[_id].addr).disableModule(true);
+        var (_success, _found, _id) = getModuleIDByName(moduleName);
+        require( _success);
+        require( abstractModule(modules[_id].addr).disableModule(true) );
         return true;
     }
     
