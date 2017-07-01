@@ -140,29 +140,42 @@ contract moduleHandler is multiOwner, announcementTypes {
         }
         return (true, false, 0);
     }
-    function replaceModule(string name, address addr) external returns (bool success) {
+    function replaceModule(string name, address addr, bool _confirmation) external returns (bool success) {
         /*
             Module replace, can be called only by the Publisher contract.
             
-            @name       Name of module.
-            @addr       Address of module.
-            @bool       Was there any result or not.
+            @name           Name of module.
+            @addr           Address of module.
+            @bool           Was there any result or not.
+            @_confirmation  Call the replaceable module to confirm replacement or not.
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
             require( block.number < debugModeUntil );
-            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name,addr))) ) {
+            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name,addr,_confirmation))) ) {
                 return true;
             }
         }
         (_success, _found, _id) = getModuleIDByName(name);
         require( _success && _found );
-        require( abstractModule(modules[_id].addr).replaceModule(addr) );
+        if(_confirmation) {
+            require( abstractModule(modules[_id].addr).replaceModule(addr) );
+        }
         require( abstractModule(addr).connectModule() );
         modules[_id].addr = addr;
         return true;
     }
+    
+    function DEBUG_triggerConfirmation(address _addr) external returns (bool _success) {
+        require( block.number < debugModeUntil );
+        if ( ! insertAndCheckDo(calcDoHash("triggerConfirmation", sha3(_addr))) ) {
+            return true;
+        }
+        require( abstractModule(modules[_id].addr).replaceModule(addr) );
+        return true;
+    }
+    
     function newModule(string name, address addr, bool schellingEvent, bool transferEvent) external returns (bool success) {
         /*
             Adding new module to the database. Can be called only by the Publisher contract.
@@ -184,27 +197,40 @@ contract moduleHandler is multiOwner, announcementTypes {
         addModule( modules_s(addr, sha3(name), schellingEvent, transferEvent), true);
         return true;
     }
-    function dropModule(string name) external returns (bool success) {
+    function dropModule(string name, bool _confirmation) external returns (bool success) {
         /*
             Deleting module from the database. Can be called only by the Publisher contract.
             
-            @name   Name of module to delete.
-            @bool   Was the function successfull?
+            @name           Name of module to delete.
+            @bool           Was the function successfull?
+            @_confirmation  Call the replaceable module to confirm replacement or not.
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
             require( block.number < debugModeUntil );
-            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name))) ) {
+            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name,_confirmation))) ) {
                 return true;
             }
         }
         (_success, _found, _id) = getModuleIDByName(name);
         require( _success && _found );
-        abstractModule(modules[_id].addr).disableModule(true);
+        if(_confirmation) {
+            abstractModule(modules[_id].addr).disableModule(true);
+        }
         delete modules[_id];
         return true;
     }
+    
+    function DEBUG_triggerDrop(address _addr) external returns (bool _success) {
+        require( block.number < debugModeUntil );
+        if ( ! insertAndCheckDo(calcDoHash("triggerConfirmation", sha3(_addr))) ) {
+            return true;
+        }
+        abstractModule(modules[_id].addr).disableModule(true);
+        return true;
+    }
+    
     function broadcastTransfer(address from, address to, uint256 value) external returns (bool success) {
         /*
             Announcing transactions for the modules.
