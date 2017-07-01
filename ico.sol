@@ -63,7 +63,7 @@ contract ico is safeMath {
         */
         foundationAddress = foundation;
         icoExchangeRate = exchangeRate;
-        icoExchangeRateSetBlock = block.number + interestBlockDelay;
+        icoExchangeRateSetBlock = block.number + exchangeRateDelay;
         icoEtcPriceAddr = priceSet;
         owner = msg.sender;
         if ( startBlockNum > 0 ) {
