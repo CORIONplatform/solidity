@@ -43,7 +43,7 @@ contract ico is safeMath {
     uint256 constant exchangeRateDelay = 125;
     bool public aborted;
     bool public closed;
-    icoLevels_s[] private icoLevels;
+    icoLevels_s[] public icoLevels;
     mapping (address => affiliate_s) public affiliate;
     mapping (address => brought_s) public brought;
     mapping (address => mapping(uint256 => interest_s)) public interestDB;
@@ -72,13 +72,10 @@ contract ico is safeMath {
         } else {
             startBlock = block.number;
         }
-        icoLevels.push(icoLevels_s(startBlock + oneSegment * 4, 103));
-        icoLevels.push(icoLevels_s(startBlock + oneSegment * 3, 105));
-        icoLevels.push(icoLevels_s(startBlock + oneSegment * 2, 110));
-        icoLevels.push(icoLevels_s(startBlock + oneSegment * 1, 115));
-        icoLevels.push(icoLevels_s(startBlock + oneSegment / 7, 120));
-        icoLevels.push(icoLevels_s(startBlock, 125));
-        icoDelay = startBlock + oneSegment * 5;
+        icoLevels.push(icoLevels_s(startBlock + oneSegment * 1, 3));
+        icoLevels.push(icoLevels_s(startBlock + oneSegment / 7, 5));
+        icoLevels.push(icoLevels_s(startBlock, 10));
+        icoDelay = startBlock + oneSegment * 3;
         for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
             interestDB[genesisAddr[a]][0].amount = genesisValue[a];
         }
@@ -92,7 +89,7 @@ contract ico is safeMath {
         */
         for ( uint8 a=0 ; a<icoLevels.length ; a++ ) {
             if ( block.number > icoLevels[a].block ) {
-                return icoLevels[a].rate - 100;
+                return icoLevels[a].rate;
             }
         }
     }
@@ -367,13 +364,7 @@ contract ico is safeMath {
                 x = (value * 1e6 * USD_ETC_exchange rate / 1e4 / 1e18) * bonus percentage
                 2.700000 token = (1e18 * 1e6 * 22500 / 1e4 / 1e18) * 1.20
         */
-        reward = value * 1e6 * icoExchangeRate / icoExchangeRateM / 1 ether;
-        for ( uint8 a=0 ; a<icoLevels.length ; a++ ) {
-            if ( block.number > icoLevels[a].block ) {
-                reward = reward * icoLevels[a].rate / 100;
-                break;
-            }
-        }
+        reward = (value * 1e6 * icoExchangeRate / icoExchangeRateM / 1 ether) * (ICObonus + 100) / 100;
         if ( reward < 5e6) { return 0; }
     }
     
