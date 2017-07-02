@@ -394,6 +394,7 @@ contract token is safeMath, module, announcementTypes {
             @success    Was the Function successful?
             @fee        Amount of Transaction fee
         */
+        if ( isICO ) { return (true, 0); }
         fee = value * transactionFeeRate / transactionFeeRateM / 100;
         if ( fee > transactionFeeMax ) { fee = transactionFeeMax; }
         else if ( fee < transactionFeeMin ) { fee = transactionFeeMin; }
