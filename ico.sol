@@ -25,7 +25,7 @@ contract ico is safeMath {
         uint256 corp;
     }
     
-    uint256 constant oneSegment = 40320;https://github.com/CORIONplatform/solidity
+    uint256 constant oneSegment = 40320;
     
     address public owner;
     address public tokenAddr;
