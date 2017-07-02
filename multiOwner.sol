@@ -71,10 +71,12 @@ contract multiOwner is safeMath {
         Privates
     */
     function _addOwner(address addr) private {
+        if ( owners[addr] ) { return; }
         owners[addr] = true;
         ownerCount = safeAdd(ownerCount, 1);
     }
     function _delOwner(address addr) private {
+        if ( ! owners[addr] ) { return; }
         delete owners[addr];
         ownerCount = safeSub(ownerCount, 1);
     }
