@@ -163,9 +163,9 @@ contract publisher is announcementTypes, module, safeMath {
             if ( announcements[id].Type == announcementType.newModule ) {
                 require( moduleHandler(moduleHandlerAddress).newModule(announcements[id]._str, announcements[id]._addr, true, true) );
             } else if ( announcements[id].Type == announcementType.dropModule ) {
-                require( moduleHandler(moduleHandlerAddress).dropModule(announcements[id]._str) );
+                require( moduleHandler(moduleHandlerAddress).dropModule(announcements[id]._str, true) );
             } else if ( announcements[id].Type == announcementType.replaceModule ) {
-                require( moduleHandler(moduleHandlerAddress).replaceModule(announcements[id]._str, announcements[id]._addr) );
+                require( moduleHandler(moduleHandlerAddress).replaceModule(announcements[id]._str, announcements[id]._addr, true) );
             } else if ( announcements[id].Type == announcementType.replaceModuleHandler) {
                 require( moduleHandler(moduleHandlerAddress).replaceModuleHandler(announcements[id]._addr) );
             } else if ( announcements[id].Type == announcementType.transactionFeeRate || 
