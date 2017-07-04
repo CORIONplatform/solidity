@@ -1,15 +1,15 @@
 pragma solidity ^0.4.11;
 
-import "browser/module.sol";
-import "browser/announcementTypes.sol";
-import "browser/multiOwner.sol";
+import "./module.sol";
+import "./announcementTypes.sol";
+import "./multiOwner.sol";
 
-import "browser/publisher.sol";
-import "browser/token.sol";
-import "browser/provider.sol";
-import "browser/schelling.sol";
-import "browser/premium.sol";
-import "browser/ico.sol";
+import "./publisher.sol";
+import "./token.sol";
+import "./provider.sol";
+import "./schelling.sol";
+import "./premium.sol";
+import "./ico.sol";
 
 contract abstractModule {
     function connectModule() external returns (bool success) {}

@@ -1,8 +1,8 @@
 pragma solidity ^0.4.11;
 
-import "browser/safeMath.sol";
-import "browser/tokenDB.sol";
-import "browser/module.sol";
+import "./safeMath.sol";
+import "./tokenDB.sol";
+import "./module.sol";
 
 contract thirdPartyPContractAbstract {
     function receiveCorionPremiumToken(address, uint256, bytes) external returns (bool, uint256) {}

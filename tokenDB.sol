@@ -1,7 +1,7 @@
 pragma solidity ^0.4.11;
 
-import "safeMath.sol";
-import "owned.sol";
+import "./safeMath.sol";
+import "./owned.sol";
 
 contract tokenDB is safeMath, ownedDB {
 

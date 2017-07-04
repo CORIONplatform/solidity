@@ -1,6 +1,6 @@
 pragma solidity ^0.4.11;
 
-import "browser/safeMath.sol";
+import "./safeMath.sol";
 
 contract multiOwner is safeMath {
     
