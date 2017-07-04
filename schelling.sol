@@ -134,6 +134,7 @@ contract schelling is module, announcementTypes, schellingVars {
         module callbacks
     */
     function replaceModule(address addr) external returns (bool) {
+        require( super.isModuleHandler(msg.sender) );
         require( db.replaceOwner(addr) );
         super._replaceModule(addr);
         return true;
