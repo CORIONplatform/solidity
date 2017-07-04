@@ -1,8 +1,8 @@
 pragma solidity ^0.4.11;
 
-import "browser/safeMath.sol";
-import "browser/owned.sol";
-import "browser/token.sol";
+import "./safeMath.sol";
+import "./owned.sol";
+import "./token.sol";
 
 contract exchange is owned, safeMath {
     uint256 public fee = 250;
