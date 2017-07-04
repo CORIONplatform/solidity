@@ -10,6 +10,7 @@ contract provider is module, safeMath, announcementTypes {
         module callbacks
     */
     function connectModule() external returns (bool success) {
+        require( super.isModuleHandler(msg.sender) );
         super._connectModule();
         var (_success, currentSchellingRound) = moduleHandler(moduleHandlerAddress).getCurrentSchellingRoundID();
         require( _success );

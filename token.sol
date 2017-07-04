@@ -16,6 +16,7 @@ contract token is safeMath, module, announcementTypes {
         module callbacks
     */
     function replaceModule(address addr) external returns (bool success) {
+        require( super.isModuleHandler(msg.sender) );
         require( db.replaceOwner(addr) );
         super._replaceModule(addr);
         return true;

@@ -13,6 +13,7 @@ contract ptokenDB is tokenDB {}
 
 contract premium is module, safeMath {
     function replaceModule(address addr) external returns (bool success) {
+        require( super.isModuleHandler(msg.sender) );
         require( db.replaceOwner(addr) );
         super._replaceModule(addr);
         return true;
