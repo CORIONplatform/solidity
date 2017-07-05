@@ -12,6 +12,14 @@ contract thirdPartyPContractAbstract {
 contract ptokenDB is tokenDB {}
 
 contract premium is module, safeMath {
+    /*
+        module callbacks
+    */
+    function connectModule() external returns (bool success) {
+        super._connectModule();
+        isICO = db.isICO();
+        return true;
+    }
     function replaceModule(address addr) external returns (bool success) {
         require( super.isModuleHandler(msg.sender) );
         require( db.replaceOwner(addr) );
