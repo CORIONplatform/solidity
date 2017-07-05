@@ -5,6 +5,7 @@ import "./safeMath.sol";
 import "./module.sol";
 import "./moduleHandler.sol";
 import "./tokenDB.sol";
+import "./ico.sol";
 
 contract thirdPartyContractAbstract {
     function receiveCorionToken(address, uint256, bytes) external returns (bool, uint256) {}
@@ -18,7 +19,7 @@ contract token is safeMath, module, announcementTypes {
     function connectModule() external returns (bool success) {
         require( super.isModuleHandler(msg.sender) );
         super._connectModule();
-        isICO = db.isICO();
+        isICO = ico(icoAddr).isICO();
         return true;
     }
     function replaceModule(address addr) external returns (bool success) {
