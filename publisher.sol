@@ -4,8 +4,9 @@ import "./announcementTypes.sol";
 import "./module.sol";
 import "./moduleHandler.sol";
 import "./safeMath.sol";
+import "./multiOwner.sol";
 
-contract publisher is announcementTypes, module, safeMath {
+contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
     /*
         module callbacks
     */
@@ -61,7 +62,7 @@ contract publisher is announcementTypes, module, safeMath {
     
     mapping (address => uint256[]) public opponents;
     
-    function publisher(address moduleHandler) {
+    function publisher(address moduleHandler) moduleMultiOwner(moduleHandler){
         /*
             Installation function.  The installer will be registered in the admin list automatically
             
@@ -131,6 +132,11 @@ contract publisher is announcementTypes, module, safeMath {
             @_uint          number box
             @_addr          address box
         */
+        moduleHandler(moduleHandlerAddress).isICO();
+        require( block.number < moduleHandler(moduleHandlerAddress).debugModeUntil() );
+        if ( ! super.insertAndCheckDo(super.calcDoHash("newAnnouncement", sha3(Type, Announcement, Link, Oppositable, _str, _uint, _addr))) ) {
+            return;
+        }
         announcementsLength++;
         announcements[announcementsLength].Type = Type;
         announcements[announcementsLength].start = block.number;
@@ -255,9 +261,9 @@ contract publisher is announcementTypes, module, safeMath {
     
     modifier onlyOwner() {
         /*
-            Only the owner  is allowed to call it.      
+            Only the owner is allowed to call it.      
         */
-        require( moduleHandler(moduleHandlerAddress).owners(msg.sender) );
+        require( super.owners(msg.sender) );
         _;
     }
     
