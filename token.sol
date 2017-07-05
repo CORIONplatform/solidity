@@ -15,6 +15,11 @@ contract token is safeMath, module, announcementTypes {
     /*
         module callbacks
     */
+    function connectModule() external returns (bool success) {
+        super._connectModule();
+        isICO = db.isICO();
+        return true;
+    }
     function replaceModule(address addr) external returns (bool success) {
         require( super.isModuleHandler(msg.sender) );
         require( db.replaceOwner(addr) );
@@ -44,7 +49,7 @@ contract token is safeMath, module, announcementTypes {
     uint256 public transactionFeeMax       = 5000000;
     uint256 public transactionFeeBurn      = 80;
     address public exchangeAddress;
-    bool    public isICO                   = true;
+    bool    public isICO;
     
     mapping(address => bool) public genesis;
     
@@ -69,7 +74,6 @@ contract token is safeMath, module, announcementTypes {
         db = tokenDB(dbAddr);
         icoAddr = icoContractAddr;
         exchangeAddress = exchangeContractAddress;
-        isICO = ! forReplace;
         if ( ! forReplace ) {
             require( db.replaceOwner(this) );
             assert( genesisAddr.length == genesisValue.length );
