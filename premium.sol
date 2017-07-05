@@ -3,6 +3,7 @@ pragma solidity ^0.4.11;
 import "./safeMath.sol";
 import "./tokenDB.sol";
 import "./module.sol";
+import "./ico.sol";
 
 contract thirdPartyPContractAbstract {
     function receiveCorionPremiumToken(address, uint256, bytes) external returns (bool, uint256) {}
@@ -18,7 +19,7 @@ contract premium is module, safeMath {
     function connectModule() external returns (bool success) {
         require( super.isModuleHandler(msg.sender) );
         super._connectModule();
-        isICO = db.isICO();
+        isICO = ico(icoAddr).isICO();
         return true;
     }
     function replaceModule(address addr) external returns (bool success) {
