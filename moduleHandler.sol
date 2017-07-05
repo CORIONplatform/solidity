@@ -33,16 +33,15 @@ contract moduleHandler is multiOwner, announcementTypes {
     
     modules_s[] public modules;
     address public foundationAddress;
-    uint256 debugModeUntil = block.number + 1000000;
+    uint256 public debugModeUntil = block.number + 1000000;
     
     function moduleHandler(address[] newOwners) multiOwner(newOwners) {}
-    
     function load(address foundation, bool forReplace, address Token, address Premium, address Publisher, address Schelling, address Provider) {
         /*
             Loading modulest to ModuleHandler.
             
             This module can be called only once and only by the owner, if every single module and its database are already put on the blockchain.
-            If forReaplace is true, than the ModuleHandler will be replaced. Before the publishing of its replace, the new contract must be already on the blockchain.
+            If forReplace is true, than the ModuleHandler will be replaced. Before the publishing of its replace, the new contract must be already on the blockchain.
             
             @foundation     Address of foundation.
             @forReplace     Is it for replace or not. If not, it will be connected to the module.
@@ -65,7 +64,7 @@ contract moduleHandler is multiOwner, announcementTypes {
             Inside function for registration of the modules in the database.
             If the call is false, wont happen any direct call.
             
-            @input  _Structure of module.
+            @input  Structure of module.
             @call   Is connect to the module or not.
         */
         if ( call ) { require( abstractModule(input.addr).connectModule() ); }
