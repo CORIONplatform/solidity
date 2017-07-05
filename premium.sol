@@ -16,6 +16,7 @@ contract premium is module, safeMath {
         module callbacks
     */
     function connectModule() external returns (bool success) {
+        require( super.isModuleHandler(msg.sender) );
         super._connectModule();
         isICO = db.isICO();
         return true;
