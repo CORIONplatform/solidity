@@ -36,6 +36,55 @@ contract moduleHandler is multiOwner, announcementTypes {
     uint256 public debugModeUntil = block.number + 1000000;
     
     function moduleHandler(address[] newOwners) multiOwner(newOwners) {}
+    /*
+    0xca35b7d915458ef540ade6068dfe2f44e8fa733c
+    deploy
+        moduleHandler
+        ["0xca35b7d915458ef540ade6068dfe2f44e8fa733c"]
+        ICO
+        "0xca35b7d915458ef540ade6068dfe2f44e8fa733c","0xca35b7d915458ef540ade6068dfe2f44e8fa733c","150000","0",[],[]
+        tokenDB
+        token
+        false,"0xbbf289d846208c16edc8474705c748aff07732db","0x5e72914535f202659083db3a02c984188fa26e9f","0x0dcd2f752394c41875e259e00bb44fd505297caf","0xca35b7d915458ef540ade6068dfe2f44e8fa733c",[],[]
+		ptokenDB
+		premium
+		false,"0xbbf289d846208c16edc8474705c748aff07732db","0xef55bfac4228981e850936aaf042951f7b146e41","0x0dcd2f752394c41875e259e00bb44fd505297caf",[],[]
+		publisher
+		"0xbbf289d846208c16edc8474705c748aff07732db"
+		provider
+		"0xbbf289d846208c16edc8474705c748aff07732db"
+		schellingDB
+		schelling
+		"0xbbf289d846208c16edc8474705c748aff07732db","0xec5bee2dbb67da8757091ad3d9526ba3ed2e2137"
+		moduleHandler.load
+		"0xca35b7d915458ef540ade6068dfe2f44e8fa733c",false,"0x08970fed061e7747cd9a38d680a601510cb659fb","0xdc04977a2078c8ffdf086d618d1f961b6c546222","0x8c1ed7e19abaa9f23c476da86dc1577f1ef401f5","0x35ef07393b57464e93deb59175ff72e6499450cf","0x9dd1e8169e76a9226b07ab9f85cc20a5e1ed44dd"
+		
+		
+		
+		
+		
+    0xca35b7d915458ef540ade6068dfe2f44e8fa733c
+    deploy
+        moduleHandler
+        ["0xca35b7d915458ef540ade6068dfe2f44e8fa733c"]
+        ICO
+        "0xca35b7d915458ef540ade6068dfe2f44e8fa733c","0xca35b7d915458ef540ade6068dfe2f44e8fa733c","150000","0",[],[]
+        tokenDB
+        token
+        false,"MODULEHANDLER","TOKENDB","ICO","0xca35b7d915458ef540ade6068dfe2f44e8fa733c",[],[]
+		ptokenDB
+		premium
+		false,"MODULEHANDLER","PTOKENDB","ICO",[],[]
+		publisher
+		"MODULEHANDLER"
+		provider
+		"MODULEHANDLER"
+		schellingDB
+		schelling
+		"MODULEHANDLER","schellingDB"
+		moduleHandler.load
+		"0xca35b7d915458ef540ade6068dfe2f44e8fa733c",false,"TOKEN","PREMIUM","PUBLISHER","SCHELLING","PROVIDER"
+    */
     function load(address foundation, bool forReplace, address Token, address Premium, address Publisher, address Schelling, address Provider) {
         /*
             Loading modulest to ModuleHandler.
