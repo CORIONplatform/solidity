@@ -16,14 +16,12 @@ contract token is safeMath, module, announcementTypes {
     /*
         module callbacks
     */
-    function connectModule() external returns (bool success) {
-        require( super.isModuleHandler(msg.sender) );
+    function connectModule() external onlyForModuleHandler returns (bool success) {
         super._connectModule();
         isICO = ico(icoAddr).isICO();
         return true;
     }
-    function replaceModule(address addr) external returns (bool success) {
-        require( super.isModuleHandler(msg.sender) );
+    function replaceModule(address addr) onlyForModuleHandler external returns (bool success) {
         require( db.replaceOwner(addr) );
         super._replaceModule(addr);
         return true;
