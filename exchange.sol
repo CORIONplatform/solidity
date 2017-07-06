@@ -1,8 +1,30 @@
 pragma solidity ^0.4.11;
 
 import "./safeMath.sol";
-import "./owned.sol";
 import "./token.sol";
+contract owned {
+    address private owner = msg.sender;
+    
+    function replaceOwner(address newOwner) external returns(bool) {
+        /*
+            owner replace.
+            
+            @newOwner address of new owner.
+        */
+        require( isOwner() );
+        owner = newOwner;
+        return true;
+    }
+    
+    function isOwner() internal returns(bool) {
+        /*
+            Check of owner address.
+            
+            @bool owner has called the contract or not 
+        */
+        return owner == msg.sender;
+    }
+}
 
 contract exchange is owned, safeMath {
     uint256 public fee = 250;
@@ -654,8 +676,9 @@ contract exchange is owned, safeMath {
         } else {
             balance[msg.sender].t = safeSub(t, amount);
             exchangeTokenBalance = safeSub(exchangeTokenBalance, amount);
-            uint256 fee = token(corion).getTransactionFee(amount);
-            require( token(corion).transfer(msg.sender, safeSub(amount, fee)) );
+            var (_success, _fee) = token(corion).getTransactionFee(amount);
+            require( _success );
+            require( token(corion).transfer(msg.sender, safeSub(amount, _fee)) );
             EPayOut(msg.sender, amount, false);
         }
     }
