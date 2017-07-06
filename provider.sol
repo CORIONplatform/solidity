@@ -9,14 +9,13 @@ contract provider is module, safeMath, announcementTypes {
     /*
         module callbacks
     */
-    function connectModule() external returns (bool success) {
-        require( super.isModuleHandler(msg.sender) );
+    function connectModule() external onlyForModuleHandler returns (bool success) {
         super._connectModule();
         var (_success, currentSchellingRound) = moduleHandler(moduleHandlerAddress).getCurrentSchellingRoundID();
         require( _success );
         return true;
     }
-    function transferEvent(address from, address to, uint256 value) external returns (bool success) {
+    function transferEvent(address from, address to, uint256 value) external onlyForModuleHandler returns (bool success) {
         /*
             Transaction completed. This function is ony available for the modulehandler.
             It should be checked if the sender or the acceptor does not connect to the provider or it is not a provider itself if so than the change should be recorded.
@@ -26,12 +25,11 @@ contract provider is module, safeMath, announcementTypes {
             @value      amount
             @bool       Was the function successful?
         */
-        require( super.isModuleHandler(msg.sender) );
         transferEvent_(from, value, true);
         transferEvent_(to, value, false);
         return true;
     }
-    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external returns (bool success) {
+    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external onlyForModuleHandler returns (bool success) {
         /*
             New schelling round. This function is only available for the moduleHandler.
             We are recording the new schelling round and we are storing the whole current quantity of the tokens.
@@ -41,7 +39,6 @@ contract provider is module, safeMath, announcementTypes {
             @reward         token emission 
             @bool           Was the function successful?
         */
-        require( super.isModuleHandler(msg.sender) );
         globalFunds[roundID].reward = reward;
         globalFunds[roundID].supply = globalFunds[roundID-1].supply;
         currentSchellingRound = roundID;
