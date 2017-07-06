@@ -3,6 +3,7 @@ pragma solidity ^0.4.11;
 import "./safeMath.sol";
 import "./tokenDB.sol";
 import "./module.sol";
+import "./ico.sol";
 
 contract thirdPartyPContractAbstract {
     function receiveCorionPremiumToken(address, uint256, bytes) external returns (bool, uint256) {}
@@ -12,6 +13,15 @@ contract thirdPartyPContractAbstract {
 contract ptokenDB is tokenDB {}
 
 contract premium is module, safeMath {
+    /*
+        module callbacks
+    */
+    function connectModule() external returns (bool success) {
+        require( super.isModuleHandler(msg.sender) );
+        super._connectModule();
+        isICO = ico(icoAddr).isICO();
+        return true;
+    }
     function replaceModule(address addr) external returns (bool success) {
         require( super.isModuleHandler(msg.sender) );
         require( db.replaceOwner(addr) );
@@ -54,11 +64,10 @@ contract premium is module, safeMath {
         */
         super.registerModuleHandler(moduleHandler);
         require( dbAddress != 0x00 );
+        icoAddr = icoContractAddr;
         db = ptokenDB(dbAddress);
         if ( ! forReplace ) {
             require( db.replaceOwner(this) );
-            isICO = true;
-            icoAddr = icoContractAddr;
             assert( genesisAddr.length == genesisValue.length );
             for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
                 genesis[genesisAddr[a]] = true;
