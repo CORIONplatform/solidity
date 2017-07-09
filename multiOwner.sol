@@ -17,13 +17,10 @@ contract moduleMultiOwner {
         Constants
     */
     function ownersForChange() public constant returns (uint256 owners) {
-        return multiOwner(multiOwnerAddress).ownerCount() * 75 / 100;
+        return multiOwner(multiOwnerAddress).ownersForChange();
     }
     function calcDoHash(string job, bytes32 data) public constant returns (bytes32 hash) {
         return sha3(job, data);
-    }
-    function validDoHash(bytes32 doHash) public constant returns (bool valid) {
-        return doDB[doHash].length > 0;
     }
     function owners(address addr) public constant returns (bool valid) {
         return multiOwner(multiOwnerAddress).owners(addr);

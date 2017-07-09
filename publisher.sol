@@ -10,12 +10,11 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
     /*
         module callbacks
     */
-    function transferEvent(address from, address to, uint256 value) external returns (bool success) {
+    function transferEvent(address from, address to, uint256 value) external onlyForModuleHandler returns (bool success) {
         /*
             Transaction completed. This function is available only for moduleHandler
             If a transaction is carried out from or to an address which participated in the objection of an announcement, its objection purport is automatically set
         */
-        require( super.isModuleHandler(msg.sender) );
         uint256 announcementID;
 		uint256 a;
 		// need reverse lookup
@@ -38,7 +37,7 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
         Pool
     */
     
-    uint256 public  minAnnouncementDelay = 40320;
+    uint256 public minAnnouncementDelay = 40320;
     uint256 public minAnnouncementDelayOnICO = 17280;
     uint8 public oppositeRate = 33;
     
@@ -58,7 +57,7 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
         address _addr;
     }
     mapping(uint256 => announcements_s) public announcements;
-    uint256 announcementsLength = 1;
+    uint256 public announcementsLength;
     
     mapping (address => uint256[]) public opponents;
     
@@ -117,7 +116,7 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
         return _amount * oppositeRate / 100 > weight;
     }
     
-    function newAnnouncement(announcementType Type, string Announcement, string Link, bool Oppositable, string _str, uint256 _uint, address _addr) onlyOwner external {
+    function newAnnouncement(announcementType Type, string Announcement, string Link, bool Oppositable, string _str, uint256 _uint, address _addr) external {
         /*
             New announcement. Can be called  only by those in the admin list
             
@@ -132,7 +131,6 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
             @_uint          number box
             @_addr          address box
         */
-        moduleHandler(moduleHandlerAddress).isICO();
         require( block.number < moduleHandler(moduleHandlerAddress).debugModeUntil() );
         if ( ! super.insertAndCheckDo(super.calcDoHash("newAnnouncement", sha3(Type, Announcement, Link, Oppositable, _str, _uint, _addr))) ) {
             return;

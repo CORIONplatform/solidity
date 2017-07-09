@@ -133,13 +133,12 @@ contract schelling is module, announcementTypes, schellingVars {
     /*
         module callbacks
     */
-    function replaceModule(address addr) external returns (bool) {
-        require( super.isModuleHandler(msg.sender) );
+    function replaceModule(address addr) external onlyForModuleHandler returns (bool) {
         require( db.replaceOwner(addr) );
         super._replaceModule(addr);
         return true;
     }
-    function transferEvent(address from, address to, uint256 value) external returns (bool) {
+    function transferEvent(address from, address to, uint256 value) external onlyForModuleHandler returns (bool) {
         /*
             Transaction completed. This function can be called only by the ModuleHandler. 
             If this contract is the receiver, the amount will be added to the prize pool of the current round.
@@ -149,7 +148,6 @@ contract schelling is module, announcementTypes, schellingVars {
             @value     Amount
             @bool      Was the transaction succesfull?
         */
-        require( super.isModuleHandler(msg.sender) );
         if ( to == address(this) ) {
             var currentRound = getCurrentRound();
             var round = getRound(currentRound);
