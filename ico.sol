@@ -72,9 +72,9 @@ contract ico is safeMath {
         } else {
             startBlock = block.number;
         }
-        icoLevels.push(icoLevels_s(startBlock + oneSegment * 1, 3));
-        icoLevels.push(icoLevels_s(startBlock + oneSegment / 7, 5));
-        icoLevels.push(icoLevels_s(startBlock, 10));
+        icoLevels.push(icoLevels_s(startBlock + oneSegment * 2, 3));
+        icoLevels.push(icoLevels_s(startBlock + oneSegment * 1, 5));
+        icoLevels.push(icoLevels_s(startBlock, 8));
         icoDelay = startBlock + oneSegment * 3;
         for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
             interestDB[genesisAddr[a]][0].amount = genesisValue[a];
@@ -229,8 +229,16 @@ contract ico is safeMath {
         require( ! closed );
         closed = true;
         require( ! aborted );
-        require( token(tokenAddr).mint(foundationAddress, token(tokenAddr).totalSupply() * 96 / 100) );
-        require( premium(premiumAddr).mint(foundationAddress, totalMint / 5000 - totalPremiumMint) );
+        var totalS = token(tokenAddr).totalSupply();
+        require( token(tokenAddr).mint(foundationAddress, totalS * 96 / 100) );
+        uint256 tPAmount = totalS / 5e9;
+        uint256 fPAmount = tPAmount - totalPremiumMint;
+        if ( (tPAmount * 20 / 100) > fPAmount ) {
+            fPAmount = (tPAmount * 20 / 100);
+        } else  if ( (tPAmount * 49 / 100) < fPAmount ) {
+            fPAmount = (tPAmount * 49 / 100);
+        }
+        require( premium(premiumAddr).mint(foundationAddress, fPAmount) );
         require( foundationAddress.send(this.balance) );
         require( token(tokenAddr).closeIco() );
         require( premium(premiumAddr).closeIco() );
