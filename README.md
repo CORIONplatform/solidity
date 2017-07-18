@@ -59,7 +59,7 @@ Coming soon..
 2. Boolean that is for replace or not? That means if this the first deploy this must be `false`
 3. token address
 4. premium address
-5. publihser address
+5. publisher address
 6. schelling address
 7. provider address
 #### #13 (OPTIONAL) Starting ICO with call the ico contract connectTokens function with the parameters:
