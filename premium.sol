@@ -81,7 +81,7 @@ contract premium is module, safeMath {
             
             @success    If the function was successful.
         */
-        require( isICO );
+        require( icoAddr == msg.sender );
         isICO = false;
         return true;
     }
@@ -295,7 +295,7 @@ contract premium is module, safeMath {
             
             @success    Was the Function successful?
         */
-        require( msg.sender == icoAddr || isICO );
+        require( msg.sender == icoAddr && isICO );
         _mint(owner, value);
         return true;
     }
