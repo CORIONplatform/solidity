@@ -109,6 +109,8 @@ contract ico is safeMath {
         interestDB[addr][_num].amount = balance;
         if ( balance == 0 ) { 
             interestDB[addr][_num].empty = true;
+        } else {
+            interestDB[addr][_num].empty = false;
         }
         return true;
     }
