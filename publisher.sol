@@ -215,21 +215,24 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
 
             @id     Announcement identification
         */
-        uint256 newArrayID = 0;
+        uint256 emptyArrayID = 0;
+	bool foundEmptyArrayID = false;
         require( announcements[id].open );
         require( announcements[id].oppositable );
         for ( uint256 a=0 ; a<opponents[msg.sender].length ; a++ ) {
             require( opponents[msg.sender][a] != id );
             if ( ! announcements[opponents[msg.sender][a]].open) {
                 delete opponents[msg.sender][a];
-                newArrayID = a;
-		break;
+		if ( ! foundEmptyArrayID ) {
+		    foundEmptyArrayID = true;
+                    emptyArrayID = a;
+		}
             }
         }
-        if ( a == opponents[msg.sender].length ) {
+        if ( ! foundEmptyArrayID ) {
             opponents[msg.sender].push(id);
         } else {
-            opponents[msg.sender][newArrayID] = id;
+            opponents[msg.sender][emptyArrayID] = id;
         }
         var (_success, _balance) = moduleHandler(moduleHandlerAddress).balanceOf(msg.sender);
         require( _success );
