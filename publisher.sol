@@ -212,21 +212,21 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
             The prime time is the windup  of the announcement, because this is the moment when the number of tokens in opposition are counted.
             One address is entitled to be in oppositon only once. An opposition cannot be withdrawn. 
             Running announcements can be opposed only.
-
+            
             @id     Announcement identification
         */
         uint256 emptyArrayID = 0;
-	bool foundEmptyArrayID = false;
+        bool foundEmptyArrayID = false;
         require( announcements[id].open );
         require( announcements[id].oppositable );
         for ( uint256 a=0 ; a<opponents[msg.sender].length ; a++ ) {
             require( opponents[msg.sender][a] != id );
             if ( ! announcements[opponents[msg.sender][a]].open) {
                 delete opponents[msg.sender][a];
-		if ( ! foundEmptyArrayID ) {
-		    foundEmptyArrayID = true;
+                if ( ! foundEmptyArrayID ) {
+                    foundEmptyArrayID = true;
                     emptyArrayID = a;
-		}
+                }
             }
         }
         if ( ! foundEmptyArrayID ) {
