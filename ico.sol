@@ -316,8 +316,8 @@ contract ico is safeMath {
         }
         uint256 _value = msg.value;
         if ( beneficiaryAddress.balance < 0.2 ether ) {
-            require( beneficiaryAddress.send(0.2 ether) );
             _value = safeSub(_value, 0.2 ether);
+            require( beneficiaryAddress.send(0.2 ether) );
         }
         var _reward = getIcoReward(_value);
         require( _reward > 0 );
