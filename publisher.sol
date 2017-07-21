@@ -19,15 +19,15 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
 		uint256 a;
 		// need reverse lookup
         for ( a=0 ; a<opponents[from].length ; a++ ) {
-            announcementID = opponents[msg.sender][a];
+            announcementID = opponents[from][a];
             if ( announcements[announcementID].end < block.number && announcements[announcementID].open ) {
-                announcements[announcementID].oppositionWeight = safeSub(announcements[a].oppositionWeight, value);
+                announcements[announcementID].oppositionWeight = safeSub(announcements[announcementID].oppositionWeight, value);
             }
         }
         for ( a=0 ; a<opponents[to].length ; a++ ) {
-            announcementID = opponents[msg.sender][a];
+            announcementID = opponents[to][a];
             if ( announcements[announcementID].end < block.number && announcements[announcementID].open ) {
-                announcements[announcementID].oppositionWeight = safeAdd(announcements[a].oppositionWeight, value);
+                announcements[announcementID].oppositionWeight = safeAdd(announcements[announcementID].oppositionWeight, value);
             }
         }
         return true;
