@@ -172,7 +172,7 @@ contract moduleHandler is multiOwner, announcementTypes {
             return true;
         }
         var (_success, _found, _id) = getModuleIDByName(moduleName);
-        require( _success && _id );
+        require( _success && _found );
         require( abstractModule(modules[_id].addr).replaceModule(newModule) );
         return true;
     }
