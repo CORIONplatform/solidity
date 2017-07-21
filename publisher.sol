@@ -19,15 +19,15 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
 		uint256 a;
 		// need reverse lookup
         for ( a=0 ; a<opponents[from].length ; a++ ) {
-            announcementID = opponents[msg.sender][a];
+            announcementID = opponents[from][a];
             if ( announcements[announcementID].end < block.number && announcements[announcementID].open ) {
-                announcements[announcementID].oppositionWeight = safeSub(announcements[a].oppositionWeight, value);
+                announcements[announcementID].oppositionWeight = safeSub(announcements[announcementID].oppositionWeight, value);
             }
         }
         for ( a=0 ; a<opponents[to].length ; a++ ) {
-            announcementID = opponents[msg.sender][a];
+            announcementID = opponents[to][a];
             if ( announcements[announcementID].end < block.number && announcements[announcementID].open ) {
-                announcements[announcementID].oppositionWeight = safeAdd(announcements[a].oppositionWeight, value);
+                announcements[announcementID].oppositionWeight = safeAdd(announcements[announcementID].oppositionWeight, value);
             }
         }
         return true;
@@ -212,10 +212,10 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
             The prime time is the windup  of the announcement, because this is the moment when the number of tokens in opposition are counted.
             One address is entitled to be in oppositon only once. An opposition cannot be withdrawn. 
             Running announcements can be opposed only.
-
+            
             @id     Announcement identification
         */
-        uint256 newArrayID = 0;
+        uint256 emptyArrayID = 0;
         bool foundEmptyArrayID = false;
         require( announcements[id].open );
         require( announcements[id].oppositable );
@@ -225,22 +225,18 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
                 delete opponents[msg.sender][a];
                 if ( ! foundEmptyArrayID ) {
                     foundEmptyArrayID = true;
-                    newArrayID = a;
+                    emptyArrayID = a;
                 }
             }
-            if ( ! foundEmptyArrayID ) {
-                foundEmptyArrayID = true;
-                newArrayID = a;
-            }
+        }
+        if ( ! foundEmptyArrayID ) {
+            opponents[msg.sender].push(id);
+        } else {
+            opponents[msg.sender][emptyArrayID] = id;
         }
         var (_success, _balance) = moduleHandler(moduleHandlerAddress).balanceOf(msg.sender);
         require( _success );
         require( _balance > 0);
-        if ( foundEmptyArrayID ) {
-            opponents[msg.sender][newArrayID] = id;
-        } else {
-            opponents[msg.sender].push(id);
-        }
         announcements[id].oppositionWeight += _balance;
         EOppositeAnnouncement(id, msg.sender, _balance);
     }
