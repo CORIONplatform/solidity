@@ -181,7 +181,7 @@ contract moduleHandler is multiOwner, announcementTypes {
     
     function newModule(string name, address addr, bool schellingEvent, bool transferEvent) external returns (bool success) {
         /*
-            Adding new module to the database. Can be called only by the Publisher contract.
+            Adding new module to the database. Can be called only by the Publisher contract or while debug mode by owners.
             
             @name               Name of module.
             @addr               Address of module.
@@ -203,7 +203,7 @@ contract moduleHandler is multiOwner, announcementTypes {
     }
     function dropModule(string name, bool callCallback) external returns (bool success) {
         /*
-            Deleting module from the database. Can be called only by the Publisher contract.
+            Deleting module from the database. Can be called only by the Publisher contract or while debug mode by owners.
             
             @name           Name of module to delete.
             @callCallback   Call the replaceable module to confirm replacement or not.
@@ -284,7 +284,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         /*
             Replacing ModuleHandler.
             
-            Can be called only by the publisher.
+            Can be called only by the publisher or while debug mode by owners.
             Every module will be informed about the ModuleHandler replacement.
             
             @newHandler     Address of the new ModuleHandler.
