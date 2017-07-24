@@ -51,6 +51,7 @@ contract multiOwner is safeMath {
     
     mapping(address => bool) public owners;
     uint256 public ownerCount;
+    uint256 public constant doConfirmRate = 75;
 
     mapping(bytes32 => address[]) public doDB;
     
@@ -66,11 +67,13 @@ contract multiOwner is safeMath {
         Externals
     */
     function insertOwner(address addr) external {
+        require( ! owners[addr]);
         if ( insertAndCheckDo(calcDoHash("insertOwner", sha3(addr))) ) {
             _addOwner(addr);
         }
     }
     function dropOwner(address addr) external {
+        require( owners[addr]);
         if ( insertAndCheckDo(calcDoHash("dropOwner", sha3(addr))) ) {
             _delOwner(addr);
         }
@@ -84,7 +87,7 @@ contract multiOwner is safeMath {
         Constants
     */
     function ownersForChange() public constant returns (uint256 owners) {
-        return ownerCount * 75 / 100;
+        return ownerCount * doConfirmRate / 100;
     }
     function calcDoHash(string job, bytes32 data) public constant returns (bytes32 hash) {
         return sha3(job, data);
@@ -122,6 +125,7 @@ contract multiOwner is safeMath {
     }
     function _delOwner(address addr) private {
         if ( ! owners[addr] ) { return; }
+        require( ownerCount > 1 );
         delete owners[addr];
         ownerCount = safeSub(ownerCount, 1);
     }
