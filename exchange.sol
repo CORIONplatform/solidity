@@ -2,29 +2,7 @@ pragma solidity ^0.4.11;
 
 import "./safeMath.sol";
 import "./token.sol";
-contract owned {
-    address private owner = msg.sender;
-    
-    function replaceOwner(address newOwner) external returns(bool) {
-        /*
-            owner replace.
-            
-            @newOwner address of new owner.
-        */
-        require( isOwner() );
-        owner = newOwner;
-        return true;
-    }
-    
-    function isOwner() internal returns(bool) {
-        /*
-            Check of owner address.
-            
-            @bool owner has called the contract or not 
-        */
-        return owner == msg.sender;
-    }
-}
+import "./owned.sol";
 
 contract exchange is owned, safeMath {
     uint256 public fee = 250;
@@ -78,6 +56,7 @@ contract exchange is owned, safeMath {
             
             @_token     Address of the token.
         */
+        owner = msg.sender;
         corion = token(_token);
         orderCounter = counterStart;
     }
@@ -121,7 +100,7 @@ contract exchange is owned, safeMath {
         require( isOwner() );
         disabled = true;
     }
-    function normaliseRate(uint256 rate) internal returns (uint256 nRate) {
+    function nomraliseRate(uint256 rate) internal returns (uint256 nRate) {
         /*
             Inner function for normalizing the rate.
             During the normalizing process we divide with the resolution and multiply. 
@@ -201,7 +180,7 @@ contract exchange is owned, safeMath {
                 balance[msg.sender].t = safeSub(balance[msg.sender].t, value - _back);
             } else {
                 balance[msg.sender].t = safeSub(balance[msg.sender].t, _token);
-                _rate = normaliseRate(rate);
+                _rate = nomraliseRate(rate);
                 insertPos(_rate, _token, true);
             }
         } else {
@@ -210,7 +189,7 @@ contract exchange is owned, safeMath {
                 balance[msg.sender].t = safeSub(balance[msg.sender].t, _ret);
                 crediting(msg.sender, value - _back, true, true);
             } else {
-                _rate = normaliseRate(rate);
+                _rate = nomraliseRate(rate);
                 _token = etherToTokenAtPrice(value, _rate);
                 _token = nomraliseUnit(_token);
                 _ether = tokenToEtherAtPrice(_token, _rate);
@@ -249,7 +228,7 @@ contract exchange is owned, safeMath {
                 balance[msg.sender].e = safeSub(balance[msg.sender].e, _ret);
                 crediting(msg.sender, value - _back, false, true);
             } else {
-                _rate = normaliseRate(rate);
+                _rate = nomraliseRate(rate);
                 _token = etherToTokenAtPrice(value, _rate);
                 _token = nomraliseUnit(_token);
                 _ether = tokenToEtherAtPrice(_token, _rate);
@@ -262,7 +241,7 @@ contract exchange is owned, safeMath {
                 balance[msg.sender].e = safeSub(balance[msg.sender].e, value - _back);
                 crediting(msg.sender, _ret, false, true);
             } else {
-                _rate = normaliseRate(rate);
+                _rate = nomraliseRate(rate);
                 _token = etherToTokenAtPrice(value, _rate);
                 _token = nomraliseUnit(_token);
                 _ether = tokenToEtherAtPrice(_token, _rate);
