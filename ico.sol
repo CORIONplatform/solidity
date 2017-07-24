@@ -77,6 +77,7 @@ contract ico is safeMath, owned {
         for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
             interestDB[genesisAddr[a]][0].amount = genesisValue[a];
         }
+        require( msg.sender.send(this.balance) );
     }
     function () payable {
         /*
