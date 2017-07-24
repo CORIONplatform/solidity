@@ -33,11 +33,10 @@ contract moduleHandler is multiOwner, announcementTypes {
     }
     
     modules_s[] public modules;
-    address public foundationAddress;
     uint256 public debugModeUntil = block.number + 1000000;
     
     function moduleHandler(address[] newOwners) multiOwner(newOwners) {}
-    function load(address foundation, bool forReplace, address Token, address Premium, address Publisher, address Schelling, address Provider) {
+    function load(bool forReplace, address Token, address Premium, address Publisher, address Schelling, address Provider) {
         /*
             Loading modulest to ModuleHandler.
             
@@ -53,7 +52,6 @@ contract moduleHandler is multiOwner, announcementTypes {
         */
         require( owners[msg.sender] );
         require( modules.length == 0 );
-        foundationAddress = foundation;
         addModule( modules_s(Token,      sha3('Token'),      false, false),  ! forReplace);
         addModule( modules_s(Premium,    sha3('Premium'),    false, false),  ! forReplace);
         addModule( modules_s(Publisher,  sha3('Publisher'),  false, true),   ! forReplace);
@@ -69,23 +67,25 @@ contract moduleHandler is multiOwner, announcementTypes {
             @call   Is connect to the module or not.
         */
         if ( call ) { require( abstractModule(input.addr).connectModule() ); }
-        var (success, found, id) = getModuleIDByAddress(input.addr);
-        require( success && ! found );
-        (success, found, id) = getModuleIDByHash(input.name);
-        require( success && ! found );
-        (success, found, id) = getModuleIDByAddress(0x00);
-        require( success );
-        if ( ! found ) {
-            id = modules.length;
+        var (_success, _found, _id) = getModuleIDByAddress(input.addr);
+        require( _success && ! _found );
+        (_success, _found, _id) = getModuleIDByHash(input.name);
+        require( _success && ! _found );
+        (_success, _found, _id) = getModuleIDByAddress(0x00);
+        require( _success );
+        if ( ! _found ) {
+            _id = modules.length;
             modules.length++;
         }
-        modules[id] = input;
+        modules[_id] = input;
     }
     function getModuleAddressByName(string name) public constant returns( bool success, bool found, address addr ) {
         /*
             Search by name for module. The result is an Ethereum address.
             
             @name       Name of module.
+            
+            @success    Was the Function successful?
             @addr       Address of module.
             @found      Is there any result.
             @success    Was the transaction succesfull or not.
@@ -99,6 +99,8 @@ contract moduleHandler is multiOwner, announcementTypes {
             Search by hash of name in the module array. The result is an index array.
             
             @name       Name of module.
+            
+            @success    Was the Function successful?
             @id         Index of module.
             @found      Was there any result or not.
         */
@@ -114,22 +116,20 @@ contract moduleHandler is multiOwner, announcementTypes {
             Search by name for module. The result is an index array.
             
             @name       Name of module.
+            
+            @success    Was the Function successful?
             @id         Index of module.
             @found      Was there any result or not.
         */
-        bytes32 _name = sha3(name);
-        for ( uint256 a=0 ; a<modules.length ; a++ ) {
-            if ( modules[a].name == _name ) {
-                return (true, true, a);
-            }
-        }
-        return (true, false, 0);
+        return getModuleIDByHash(sha3(name));
     }
     function getModuleIDByAddress(address addr) public constant returns( bool success, bool found, uint256 id ) {
         /*
             Search by ethereum address for module. The result is an index array.
             
-            @name       Name of module.
+            @address    Address of the module
+            
+            @success    Was the Function successful?
             @id         Index of module.
             @found      Was there any result or not.
         */
@@ -142,12 +142,13 @@ contract moduleHandler is multiOwner, announcementTypes {
     }
     function replaceModule(string name, address addr, bool callCallback) external returns (bool success) {
         /*
-            Module replace, can be called only by the Publisher contract.
+            Module replace, can be called only by the Publisher contract or owner during debug mode.
             
             @name           Name of module.
             @addr           Address of module.
-            @bool           Was there any result or not.
             @callCallback   Call the replaceable module to confirm replacement or not.
+            
+            @success        Was the Function successful?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
@@ -186,7 +187,8 @@ contract moduleHandler is multiOwner, announcementTypes {
             @addr               Address of module.
             @schellingEvent     Gets it new Schelling round notification?
             @transferEvent      Gets it new transaction notification?
-            @bool               Was there any result or not.
+            
+            @success            Was the Function successful?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
@@ -204,8 +206,9 @@ contract moduleHandler is multiOwner, announcementTypes {
             Deleting module from the database. Can be called only by the Publisher contract.
             
             @name           Name of module to delete.
-            @bool           Was the function successfull?
             @callCallback   Call the replaceable module to confirm replacement or not.
+            
+            @success        Was the Function successful?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
@@ -245,7 +248,8 @@ contract moduleHandler is multiOwner, announcementTypes {
             @from       from who.
             @to         to who.
             @value      amount.
-            @bool       Was the function successfull?
+            
+            @success    Was the Function successful?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success && _found && modules[_id].name == sha3('Token') );
@@ -264,7 +268,8 @@ contract moduleHandler is multiOwner, announcementTypes {
             
             @roundID        Number of Schelling round.
             @reward         Coin emission in this Schelling round.
-            @bool           Was the function successfull?
+            
+            @success        Was the Function successful?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success && _found && modules[_id].name == sha3('Schelling') );
@@ -283,7 +288,8 @@ contract moduleHandler is multiOwner, announcementTypes {
             Every module will be informed about the ModuleHandler replacement.
             
             @newHandler     Address of the new ModuleHandler.
-            @bool           Was the function successfull?
+            
+            @success        Was the Function successful?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
         require( _success );
@@ -302,9 +308,10 @@ contract moduleHandler is multiOwner, announcementTypes {
         /*
             Query of token balance.
             
-            @owner     address
-            @value      balance.
-            @success    was the function successfull?
+            @owner      Address
+            
+            @success    Was the Function successful?
+            @value      Balance
         */
         var (_success, _found, _id) = getModuleIDByName('Token');
         require( _success && _found );
@@ -314,8 +321,8 @@ contract moduleHandler is multiOwner, announcementTypes {
         /*
             Query of the whole token amount.
             
-            @value      amount.
-            @success    was the function successfull?
+            @value      Amount
+            @success    Was the function successfull?
         */
         var (_success, _found, _id) = getModuleIDByName('Token');
         require( _success && _found );
@@ -325,8 +332,8 @@ contract moduleHandler is multiOwner, announcementTypes {
         /*
             Query of ICO state
             
-            @ico        Is ICO in progress?.
-            @success    was the function successfull?
+            @ico        Is ICO in progress?
+            @success    Was the function successfull?
         */
         var (_success, _found, _id) = getModuleIDByName('Token');
         require( _success && _found );
@@ -337,7 +344,7 @@ contract moduleHandler is multiOwner, announcementTypes {
             Query of number of the actual Schelling round.
             
             @round      Schelling round.
-            @success    was the function successfull?
+            @success    Was the function successfull?
         */
         var (_success, _found, _id) = getModuleIDByName('Schelling');
         require( _success && _found );
@@ -363,10 +370,11 @@ contract moduleHandler is multiOwner, announcementTypes {
         /*
             Token transaction request. Can be called only by a module.
             
-            @from       from who.
+            @from       From who.
             @to         To who.
             @value      Token amount.
             @fee        Transaction fee will be charged or not?
+            
             @success    Was the function successfull?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
@@ -382,6 +390,7 @@ contract moduleHandler is multiOwner, announcementTypes {
             
             @from       From who.
             @value      Token amount.
+            
             @success    Was the function successfull?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
@@ -414,6 +423,7 @@ contract moduleHandler is multiOwner, announcementTypes {
             @aType      Type of variable (announcementType).
             @value      New value
             @addr       New address
+            
             @success    Was the function successfull?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
