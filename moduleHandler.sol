@@ -16,6 +16,7 @@ contract abstractModule {
     function disconnectModule() external returns (bool success) {}
     function replaceModule(address addr) external returns (bool success) {}
     function disableModule(bool forever) external returns (bool success) {}
+    function configureModule(announcementType aType, uint256 value, address addr) onlyForModuleHandler external returns(bool success) {}
     function isActive() public constant returns (bool success) {}
     function replaceModuleHandler(address newHandler) external returns (bool success) {}
     function transferEvent(address from, address to, uint256 value) external returns (bool success) {}
@@ -425,7 +426,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         }
         (_success, _found, _id) = getModuleIDByName(moduleName);
         require( _success && _found );
-        require( token(modules[_id].addr).configureModule(aType, value, addr) );
+        require( abstractModule(modules[_id].addr).configureModule(aType, value, addr) );
         return true;
     }
     function freezing(bool forever) external {
