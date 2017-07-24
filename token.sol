@@ -154,7 +154,6 @@ contract token is safeMath, module, announcementTypes {
             @nonce             Transaction count
         */
         require( msg.sender != spender );
-        require( db.balanceOf(msg.sender) >= amount );
         var (_success, _remaining, _nonce) = db.getAllowance(msg.sender, spender);
         require( _success && ( _nonce == nonce ) );
         require( db.setAllowance(msg.sender, spender, amount, nonce) );
