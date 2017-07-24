@@ -4,9 +4,9 @@ import "./safeMath.sol";
 import "./token.sol";
 import "./premium.sol";
 import "./moduleHandler.sol";
+import "./owned.sol";
 
-contract ico is safeMath {
-    
+contract ico is safeMath, owned {
     struct icoLevels_s {
         uint256 block;
         uint8 rate;
@@ -27,7 +27,6 @@ contract ico is safeMath {
     
     uint256 constant oneSegment = 40320;
     
-    address public owner;
     address public tokenAddr;
     address public premiumAddr;
     uint256 public startBlock;
@@ -80,25 +79,14 @@ contract ico is safeMath {
             interestDB[genesisAddr[a]][0].amount = genesisValue[a];
         }
     }
-    
-    function replaceOwner(address newOwner) external {
-        require( msg.sender == owner );
-        owner = newOwner;
-    }
-    
-    function ICObonus() public constant returns(uint256 bonus) {
+    function () payable {
         /*
-            Query of current bonus
-            
-            @bonus  Bonus %
+            Callback function. Simply calls the buy function as a beneficiary and there is no affilate address.
+            If they call the contract without any function then this process will be taken place.
         */
-        for ( uint8 a=0 ; a<icoLevels.length ; a++ ) {
-            if ( block.number > icoLevels[a].block ) {
-                return icoLevels[a].rate;
-            }
-        }
+        require( isICO() );
+        require( buy(msg.sender, 0x00) );
     }
-    
     function setInterestDB(address addr, uint256 balance) external returns(bool success) {
         /*
             Setting interest database. It can be requested by Token contract only.
@@ -109,7 +97,7 @@ contract ico is safeMath {
             
             @success    Was the process successful or not
         */
-        require( msg.sender == tokenAddr );
+        require( tokenContractAddr == msg.sender );
         uint256 _num = (block.number - startBlock) / interestBlockDelay;
         interestDB[addr][_num].amount = balance;
         if ( balance == 0 ) { 
@@ -119,43 +107,6 @@ contract ico is safeMath {
         }
         return true;
     }
-    
-    function checkInterest(address addr) public constant returns(uint256 amount) {
-        /*
-            Query of compound interest
-            
-            @addr       Address
-            
-            @amount     Amount of compound interest
-        */
-        uint256 _lastBal;
-        uint256 _tamount;
-        bool _empty;
-        interest_s memory _idb;
-        uint256 _to = (block.number - startBlock) / interestBlockDelay;
-        
-        if ( _to == 0 || aborted ) { return 0; }
-        
-        for ( uint256 r=0 ; r < _to ; r++ ) {
-            if ( r*interestBlockDelay+startBlock >= icoDelay ) { break; }
-            _idb = interestDB[addr][r];
-            if ( _idb.amount > 0 ) {
-                if ( _empty ) {
-                    _lastBal = _idb.amount + amount;
-                } else {
-                    _lastBal = _idb.amount;
-                }
-            }
-            if ( _idb.empty ) {
-                _lastBal = 0;
-                _empty = _idb.empty;
-            }
-            _lastBal += _tamount;
-            _tamount = _lastBal * interestOnICO / interestOnICOM / 100;
-            amount += _tamount;
-        }
-    }
-    
     function getInterest(address beneficiary) external {
         /*
             Request of  compound interest. This is deleted  from the database after the ICO closed and following the query of the compound interest.
@@ -197,7 +148,6 @@ contract ico is safeMath {
         require( _amount > 0 );
         token(tokenAddr).mint(_addr, _amount);
     }
-    
     function setICOEthPrice(uint256 value) external {
         /*
             Setting of the ICO ETC USD rates which can only be calle by a pre-defined address. 
@@ -212,7 +162,6 @@ contract ico is safeMath {
         icoExchangeRateSetBlock = block.number + exchangeRateDelay;
         icoExchangeRate = value;
     }
-    
     function extendICO() external {
         /*
             Extend the period of the ICO with one segment.
@@ -220,10 +169,9 @@ contract ico is safeMath {
             It is only possible during the ICO and only callable by the owner.
         */
         require( isICO() );
-        require( msg.sender == owner );
+        require( isOwner() );
         icoDelay += oneSegment;
     }
-    
     function closeICO() external {
         /*
             Closing the ICO.
@@ -231,15 +179,16 @@ contract ico is safeMath {
             The 96% of the whole amount of the token is generated to the address of the fundation.
             Ethers which are situated in this contract will be sent to the address of the fundation.
         */
-        require( msg.sender == owner );
+        require( isOwner() );
         require( block.number > icoDelay );
         require( ! closed );
         closed = true;
         require( ! aborted );
-        var totalS = token(tokenAddr).totalSupply();
-        require( token(tokenAddr).mint(foundationAddress, totalS * 96 / 100) );
-        uint256 tPAmount = totalS / 5e9;
-        uint256 fPAmount = tPAmount - totalPremiumMint;
+        var totalTokenSupply = token(tokenAddr).totalSupply();
+        var totalPremiumSupply = premium(tokenAddr).totalSupply();
+        require( token(tokenAddr).mint(foundationAddress, totalTokenSupply * 96 / 100) );
+        uint256 tPAmount = totalTokenSupply / 5e9;
+        uint256 fPAmount = tPAmount - totalPremiumSupply;
         if ( (tPAmount * 20 / 100) > fPAmount ) {
             fPAmount = (tPAmount * 20 / 100);
         } else  if ( (tPAmount * 49 / 100) < fPAmount ) {
@@ -250,7 +199,6 @@ contract ico is safeMath {
         require( token(tokenAddr).closeIco() );
         require( premium(premiumAddr).closeIco() );
     }
-    
     function abortICO() external {
         /*
             Withdrawal of the ICO.            
@@ -259,10 +207,9 @@ contract ico is safeMath {
             After this process only the receiveFunds function will be available for the customers.
         */
         require( isICO() );
-        require( msg.sender == owner );
+        require( isOwner() );
         aborted = true;
     }
-    
     function connectTokens(address tokenContractAddr, address premiumContractAddr) external {
         /*
             Installation function which joins the two token contracts with this contract.
@@ -276,7 +223,6 @@ contract ico is safeMath {
         tokenAddr = tokenContractAddr;
         premiumAddr = premiumContractAddr;
     }
-    
     function receiveFunds() external {
         /*
             Refund the amount which was purchased during the ICO period.
@@ -289,16 +235,6 @@ contract ico is safeMath {
         delete brought[msg.sender];
         require( msg.sender.send(_val) );
     }
-    
-    function () payable {
-        /*
-            Callback function. Simply calls the buy function as a beneficiary and there is no affilate address.
-            If they call the contract without any function then this process will be taken place.
-        */
-        require( isICO() );
-        require( buy(msg.sender, 0x00) );
-    }
-    
     function buy(address beneficiaryAddress, address affilateAddress) payable returns (bool success) {
         /*
             Buying a token
@@ -321,8 +257,8 @@ contract ico is safeMath {
         }
         uint256 _value = msg.value;
         if ( beneficiaryAddress.balance < 0.2 ether ) {
+            require( beneficiaryAddress.call.gas(90000).value(0.2 ether)() );
             _value = safeSub(_value, 0.2 ether);
-            require( beneficiaryAddress.send(0.2 ether) );
         }
         var _reward = getIcoReward(_value);
         require( _reward > 0 );
@@ -355,21 +291,53 @@ contract ico is safeMath {
         EICO(beneficiaryAddress, _reward, affilateAddress, extra);
         return true;
     }
-
-    function checkPremium(address owner) internal {
+    function checkInterest(address addr) public constant returns(uint256 amount) {
         /*
-            Crediting the premium token
-        
-            @owner The corion token balance of this address will be set based on the calculation which shows that how many times can be the amount of the purchased tokens devided by 5000. So after each 5000 token we give 1 premium token.
+            Query of compound interest
+            
+            @addr       Address
+            
+            @amount     Amount of compound interest
         */
-        uint256 _reward = (brought[owner].cor / 5e9) - brought[owner].corp;
-        if ( _reward > 0 ) {
-            require( premium(premiumAddr).mint(owner, _reward) );
-            brought[owner].corp = safeAdd(brought[owner].corp, _reward);
-            totalPremiumMint = safeAdd(totalPremiumMint, _reward);
+        uint256 _lastBal;
+        uint256 _tamount;
+        bool _empty;
+        interest_s memory _idb;
+        uint256 _to = (block.number - startBlock) / interestBlockDelay;
+        
+        if ( _to == 0 || aborted ) { return 0; }
+        
+        for ( uint256 r=0 ; r < _to ; r++ ) {
+            if ( r*interestBlockDelay+startBlock >= icoDelay ) { break; }
+            _idb = interestDB[addr][r];
+            if ( _idb.amount > 0 ) {
+                if ( _empty ) {
+                    _lastBal = _idb.amount + amount;
+                } else {
+                    _lastBal = _idb.amount;
+                }
+            }
+            if ( _idb.empty ) {
+                _lastBal = 0;
+                _empty = _idb.empty;
+            }
+            _lastBal += _tamount;
+            _tamount = _lastBal * interestOnICO / interestOnICOM / 100;
+            amount += _tamount;
         }
     }
-    
+    function ICObonus() public constant returns(uint256 bonus) {
+        /*
+            Query of current bonus
+            
+            @bonus  Bonus %
+        */
+        for ( uint8 a=0 ; a<icoLevels.length ; a++ ) {
+            if ( block.number > icoLevels[a].block ) {
+                return icoLevels[a].rate;
+            }
+        }
+    }
     function getIcoReward(uint256 value) public constant returns (uint256 reward) {
         /*
             Expected token volume at token purchase
@@ -382,9 +350,21 @@ contract ico is safeMath {
         reward = (value * 1e6 * icoExchangeRate / icoExchangeRateM / 1 ether) * (ICObonus() + 100) / 100;
         if ( reward < 5e6) { return 0; }
     }
-    
     function isICO() public constant returns (bool success) {
         return startBlock <= block.number && block.number <= icoDelay && ( ! aborted ) && ( ! closed );
+    }
+    function checkPremium(address owner) internal {
+        /*
+            Crediting the premium token
+        
+            @owner The corion token balance of this address will be set based on the calculation which shows that how many times can be the amount of the purchased tokens devided by 5000. So after each 5000 token we give 1 premium token.
+        */
+        uint256 _reward = (brought[owner].cor / 5e9) - brought[owner].corp;
+        if ( _reward > 0 ) {
+            require( premium(premiumAddr).mint(owner, _reward) );
+            brought[owner].corp = safeAdd(brought[owner].corp, _reward);
+            totalPremiumMint = safeAdd(totalPremiumMint, _reward);
+        }
     }
     
     event EICO(address indexed Address, uint256 indexed value, address Affilate, uint256 AffilateValue);
