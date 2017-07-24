@@ -335,7 +335,7 @@ contract token is safeMath, module, announcementTypes {
         if ( _back > 0 ) {
             _transfer(to, from, _back, false);
         }
-        _processTransactionFee(from, amount - _back);
+        _processTransactionFee(from, safeSub(amount, _back));
     }
     function _transfer(address from, address to, uint256 amount, bool fee) internal {
         /*
@@ -353,7 +353,7 @@ contract token is safeMath, module, announcementTypes {
         if( fee ) {
             var (success, _fee) = getTransactionFee(amount);
             require( success );
-            require( db.balanceOf(from) >= amount + _fee );
+            require( db.balanceOf(from) >= safeAdd(amount, _fee) );
         }
         require( from != 0x00 && to != 0x00 && to != 0xa636a97578d26a3b76b060bbc18226d954cf3757 );
         require( ( ! isICO) || genesis[from] );
@@ -378,7 +378,7 @@ contract token is safeMath, module, announcementTypes {
         var (_success, _fee) = getTransactionFee(value);
         require( _success );
         uint256 _forBurn = _fee * transactionFeeBurn / 100;
-        uint256 _forSchelling = _fee - _forBurn;
+        uint256 _forSchelling = safeSub(_fee, _forBurn);
         bool _found;
         address _schellingAddr;
         (_success, _found, _schellingAddr) = moduleHandler(moduleHandlerAddress).getModuleAddressByName('Schelling');
