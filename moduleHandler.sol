@@ -424,7 +424,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         }
         (_success, _found, _id) = getModuleIDByName(moduleName);
         require( _success && _found );
-        require( token(modules[_id].addr).configure(aType, value, addr) );
+        require( token(modules[_id].addr).configureModule(aType, value, addr) );
         return true;
     }
     function freezing(bool forever) external {
