@@ -81,6 +81,11 @@ contract ico is safeMath {
         }
     }
     
+    function replaceOwner(address newOwner) external {
+        request( msg.sender == owner );
+        owner = newOwner;
+    }
+    
     function ICObonus() public constant returns(uint256 bonus) {
         /*
             Query of current bonus
