@@ -82,7 +82,7 @@ contract ico is safeMath {
     }
     
     function replaceOwner(address newOwner) external {
-        request( msg.sender == owner );
+        require( msg.sender == owner );
         owner = newOwner;
     }
     
