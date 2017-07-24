@@ -106,9 +106,13 @@ contract module is announcementType {
     function newSchellingRoundEvent(uint256 roundID, uint256 reward) external onlyForModuleHandler returns (bool success) {
         return true;
     }
-    function configure(announcementType aType, uint256 value, address addr) onlyForModuleHandler external returns(bool success) {
+    
+    function configureModule(announcementType aType, uint256 value, address addr) onlyForModuleHandler external returns(bool success) {
+        _configureModule();
         return true;
     }
+    function _configureModule(announcementType aType, uint256 value, address addr) internal {}
+    
     function registerModuleHandler(address _moduleHandlerAddress) internal {
         /*
             Module constructor function for registering ModuleHandler address.
