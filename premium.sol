@@ -32,20 +32,15 @@ contract premium is module, safeMath {
         _;
     }
     /**
-    *
     * @title Corion Platform Premium Token
     * @author iFA @ Corion Platform
-    *
     */
-    
     string public name = "Corion Premium";
     string public symbol = "CORP";
-    uint8 public decimals = 0;
-    
+    uint8  public decimals = 0;
     address public icoAddr;
     tokenDB public db;
     bool    public  isICO;
-    
     mapping(address => bool) public genesis;
     
     function premium(bool forReplace, address moduleHandler, address dbAddress, address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) {
@@ -74,7 +69,6 @@ contract premium is module, safeMath {
             }
         }
     }
-    
     function closeIco() external returns (bool success) {
         /*
             Finishing the ICO. Can be invited only by an ICO contract.
@@ -85,7 +79,6 @@ contract premium is module, safeMath {
         isICO = false;
         return true;
     }
-    
     /**
      * @notice `msg.sender` approves `spender` to spend `amount` tokens on its behalf.
      * @param spender The address of the account able to transfer the tokens
@@ -106,7 +99,6 @@ contract premium is module, safeMath {
         _approve(spender, amount, nonce);
         return true;
     }
-    
     /**
      * @notice `msg.sender` approves `spender` to spend `amount` tokens on its behalf and notify the spender from your approve with your `extraData` data.
      * @param spender The address of the account able to transfer the tokens
@@ -131,38 +123,6 @@ contract premium is module, safeMath {
         require( thirdPartyPContractAbstract(spender).approvedCorionPremiumToken(msg.sender, amount, extraData) );
         return true;
     }
-    
-    function _approve(address spender, uint256 amount, uint256 nonce) isReady internal {
-        /*
-            Inner function to authorize another address to use an exact amount of the principal’s balance. 
-            If the transaction count not match the authorise fails.
-            
-            @spender    Address of authorised party
-            @amount     Token quantity
-            @nonce      Transaction count
-        */
-        require( msg.sender != spender );
-        var (_success, _remaining, _nonce) = db.getAllowance(msg.sender, spender);
-        require( _success && ( _nonce == nonce ) );
-        require( db.setAllowance(msg.sender, spender, amount, nonce) );
-        Approval(msg.sender, spender, amount);
-    }
-    
-    function allowance(address owner, address spender) constant returns (uint256 remaining, uint256 nonce) {
-        /*
-            Get the quantity of tokens given to be used
-            
-            @owner          Authorising address
-            @spender        Authorised address
-            
-            @remaining      Tokens to be spent
-            @nonce          Transaction count
-        */
-        var (_success, _remaining, _nonce) = db.getAllowance(owner, spender);
-        require( _success );
-        return (_remaining, _nonce);
-    }
-    
     /**
      * @notice Send `amount` Corion tokens to `to` from `msg.sender`
      * @param to The address of the recipient
@@ -189,7 +149,6 @@ contract premium is module, safeMath {
         Transfer(msg.sender, to, amount, _data);
         return true;
     }
-    
     /**
      * @notice Send `amount` tokens to `to` from `from` on the condition it is approved by `from`
      * @param from The address holding the tokens being transferred
@@ -226,7 +185,6 @@ contract premium is module, safeMath {
         Transfer(from, to, amount, _data);
         return true;
     }
-    
     /**
      * @notice Send `amount` Corion tokens to `to` from `msg.sender` and notify the receiver from your transaction with your `extraData` data
      * @param to The contract address of the recipient
@@ -253,7 +211,19 @@ contract premium is module, safeMath {
         Transfer(msg.sender, to, amount, extraData);
         return true;
     }
-    
+    function mint(address owner, uint256 value) external returns (bool success) {
+        /*
+            Generating tokens. It can be called only by ICO contract.
+            
+            @owner      Address
+            @value      Amount.
+            
+            @success    Was the Function successful?
+        */
+        require( msg.sender == icoAddr && isICO );
+        _mint(owner, value);
+        return true;
+    }
     function transferToContract(address from, address to, uint256 amount, bytes extraData) internal {
         /*
             Inner function in order to transact a contract.
@@ -270,8 +240,7 @@ contract premium is module, safeMath {
             _transfer(to, from, _back);
         }
     }
-    
-    function _transfer(address from, address to, uint256 amount) isReady internal {
+    function _transfer(address from, address to, uint256 amount) internal {
         /*
             Inner function to launch a transaction.
             During the ICO transactions are only possible from the genesis address.
@@ -286,21 +255,6 @@ contract premium is module, safeMath {
         require( db.decrease(from, amount) );
         require( db.increase(to, amount) );
     }
-    
-    function mint(address owner, uint256 value) external returns (bool success) {
-        /*
-            Generating tokens. It can be called only by ICO contract.
-            
-            @owner      Address
-            @value      Amount.
-            
-            @success    Was the Function successful?
-        */
-        require( msg.sender == icoAddr && isICO );
-        _mint(owner, value);
-        return true;
-    }
-    
     function _mint(address owner, uint256 value) isReady internal {
         /*
             Inner function to create a token.
@@ -311,7 +265,21 @@ contract premium is module, safeMath {
         require( db.increase(owner, value) );
         Mint(owner, value);
     }
-    
+    function _approve(address spender, uint256 amount, uint256 nonce) isReady internal {
+        /*
+            Inner function to authorize another address to use an exact amount of the principal’s balance. 
+            If the transaction count not match the authorise fails.
+            
+            @spender    Address of authorised party
+            @amount     Token quantity
+            @nonce      Transaction count
+        */
+        require( msg.sender != spender );
+        var (_success, _remaining, _nonce) = db.getAllowance(msg.sender, spender);
+        require( _success && ( _nonce == nonce ) );
+        require( db.setAllowance(msg.sender, spender, amount, nonce) );
+        Approval(msg.sender, spender, amount);
+    }
     function isContract(address addr) internal returns (bool success) {
         /*
             Inner function in order to check if the given address is a natural address or a contract.
@@ -326,7 +294,6 @@ contract premium is module, safeMath {
         }
         return _codeLength > 0;
     }
-    
     function balanceOf(address owner) constant returns (uint256 value) {
         /*
             Token balance query
@@ -336,7 +303,20 @@ contract premium is module, safeMath {
         */
         return db.balanceOf(owner);
     }
-    
+    function allowance(address owner, address spender) constant returns (uint256 remaining, uint256 nonce) {
+        /*
+            Get the quantity of tokens given to be used
+            
+            @owner          Authorising address
+            @spender        Authorised address
+            
+            @remaining      Tokens to be spent
+            @nonce          Transaction count
+        */
+        var (_success, _remaining, _nonce) = db.getAllowance(owner, spender);
+        require( _success );
+        return (_remaining, _nonce);
+    }
     function totalSupply() constant returns (uint256 value) {
         /*
             Total token quantity query
