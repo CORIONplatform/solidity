@@ -15,6 +15,7 @@ contract announcementTypes {
         transactionFeeMin,
         transactionFeeMax,
         transactionFeeBurn,
+        exchangeAddress, 
         providerPublicFunds,
         providerPrivateFunds,
         providerPrivateClientLimit,
