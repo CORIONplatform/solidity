@@ -412,6 +412,7 @@ contract moduleHandler is multiOwner, announcementTypes {
             @moduleName Module name which will be configured
             @aType      Type of variable (announcementType).
             @value      New value
+            @addr       New address
             @success    Was the function successfull?
         */
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
