@@ -175,8 +175,7 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
             } else if ( announcements[id].Type == announcementType.transactionFeeRate || 
                         announcements[id].Type == announcementType.transactionFeeMin || 
                         announcements[id].Type == announcementType.transactionFeeMax || 
-                        announcements[id].Type == announcementType.transactionFeeBurn ||
-                        announcements[id].Type == announcementType.exchangeAddress ) {
+                        announcements[id].Type == announcementType.transactionFeeBurn ) {
                 require( moduleHandler(moduleHandlerAddress).configureModule("token", announcements[id].Type, announcements[id]._uint, announcements[id]._addr) );
             } else if ( announcements[id].Type == announcementType.providerPublicFunds || 
                         announcements[id].Type == announcementType.providerPrivateFunds || 
