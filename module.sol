@@ -1,11 +1,13 @@
 pragma solidity ^0.4.11;
 
+import "./announcementTypes.sol";
+
 contract abstractModuleHandler {
     function transfer(address from, address to, uint256 value, bool fee) external returns (bool success) {}
     function balanceOf(address owner) public constant returns (bool success, uint256 value) {}
 }
 
-contract module {
+contract module is announcementType {
     /*
         Module
     */
@@ -104,7 +106,9 @@ contract module {
     function newSchellingRoundEvent(uint256 roundID, uint256 reward) external onlyForModuleHandler returns (bool success) {
         return true;
     }
-    
+    function configure(announcementType aType, uint256 value, address addr) onlyForModuleHandler external returns(bool success) {
+        return true;
+    }
     function registerModuleHandler(address _moduleHandlerAddress) internal {
         /*
             Module constructor function for registering ModuleHandler address.
