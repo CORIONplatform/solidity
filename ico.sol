@@ -97,7 +97,7 @@ contract ico is safeMath, owned {
             
             @success    Was the process successful or not
         */
-        require( tokenContractAddr == msg.sender );
+        require( tokenAddr == msg.sender );
         uint256 _num = (block.number - startBlock) / interestBlockDelay;
         interestDB[addr][_num].amount = balance;
         if ( balance == 0 ) { 
