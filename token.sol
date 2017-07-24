@@ -30,7 +30,6 @@ contract token is safeMath, module {
         else if ( aType == announcementType.transactionFeeMin )     { transactionFeeMin = value; }
         else if ( aType == announcementType.transactionFeeMax )     { transactionFeeMax = value; }
         else if ( aType == announcementType.transactionFeeBurn )    { transactionFeeBurn = value; }
-        else if ( aType == announcementType.exchangeAddress )       { exchangeAddress = addr; }
         else { return false; }
         super._configureModule(aType, value, addr);
         return true;
@@ -55,33 +54,28 @@ contract token is safeMath, module {
     uint256 public transactionFeeMin       =   20000;
     uint256 public transactionFeeMax       = 5000000;
     uint256 public transactionFeeBurn      = 80;
-    address public exchangeAddress;
     bool    public isICO;
     
     mapping(address => bool) public genesis;
     
-    function token(bool forReplace, address moduleHandler, address dbAddr, address icoContractAddr,
-        address exchangeContractAddress, address[] genesisAddr, uint256[] genesisValue) payable {
+    function token(bool forReplace, address moduleHandler, address dbAddr,
+        address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) payable {
         /*
             Installation function
-            
-            When _icoAddr is defined, 0.2 ether has to be attached  as many times  as many genesis addresses are given
+            When icoContractAddr is defined, 0.2 ether has to be attached  as many times as many genesis addresses are given
             
             @forReplace                 This address will be replaced with the old one or not.
             @moduleHandler              Modulhandler's address
             @dbAddr                     Address of database
             @icoContractAddr            Address of ICO contract
-            @exchangeContractAddress    Address of Market in order to buy gas during ICO
             @genesisAddr                Array of Genesis addresses
             @genesisValue               Array of balance of genesis addresses
         */
         super.registerModuleHandler(moduleHandler);
         require( dbAddr != 0x00 );
         require( icoContractAddr != 0x00 );
-        require( exchangeContractAddress != 0x00 );
         db = tokenDB(dbAddr);
         icoAddr = icoContractAddr;
-        exchangeAddress = exchangeContractAddress;
         if ( ! forReplace ) {
             require( db.replaceOwner(this) );
             assert( genesisAddr.length == genesisValue.length );
@@ -320,14 +314,14 @@ contract token is safeMath, module {
             @amount         Quantity
             @extraData      Extra data the receiver will get
         */
-        _transfer(from, to, amount, exchangeAddress == to);
+        _transfer(from, to, amount, true);
+        
         var (_success, _back) = thirdPartyContractAbstract(to).receiveCorionToken(from, amount, extraData);
         require( _success );
         require( amount > _back );
         if ( _back > 0 ) {
             _transfer(to, from, _back, false);
         }
-        _processTransactionFee(from, safeSub(amount, _back));
     }
     function _transfer(address from, address to, uint256 amount, bool fee) internal {
         /*
