@@ -100,7 +100,7 @@ contract exchange is owned, safeMath {
         require( isOwner() );
         disabled = true;
     }
-    function nomraliseRate(uint256 rate) internal returns (uint256 nRate) {
+    function normaliseRate(uint256 rate) internal returns (uint256 nRate) {
         /*
             Inner function for normalizing the rate.
             During the normalizing process we divide with the resolution and multiply. 
@@ -112,7 +112,7 @@ contract exchange is owned, safeMath {
         nRate = rate / rateStep * rateStep;
         assert( nRate > 0 );
     }
-    function nomraliseUnit(uint256 unit) internal returns (uint256 nUnit) {
+    function normaliseUnit(uint256 unit) internal returns (uint256 nUnit) {
         /*
             Inner function for normalizing the sell/buy token amount.
             During the normalizing process the contract divide with the resolution and multiply.
@@ -173,14 +173,14 @@ contract exchange is owned, safeMath {
         uint256 _ret;
         require( ! disabled );
         if ( token ) {
-            _token = nomraliseUnit(value);
+            _token = normaliseUnit(value);
             if ( instant ) {
                 (_back, _ret) = instantTrade(true, _token, 0, false);
                 crediting(msg.sender, _ret, true, true);
                 balance[msg.sender].t = safeSub(balance[msg.sender].t, value - _back);
             } else {
                 balance[msg.sender].t = safeSub(balance[msg.sender].t, _token);
-                _rate = nomraliseRate(rate);
+                _rate = normaliseRate(rate);
                 insertPos(_rate, _token, true);
             }
         } else {
@@ -189,9 +189,9 @@ contract exchange is owned, safeMath {
                 balance[msg.sender].t = safeSub(balance[msg.sender].t, _ret);
                 crediting(msg.sender, value - _back, true, true);
             } else {
-                _rate = nomraliseRate(rate);
+                _rate = normaliseRate(rate);
                 _token = etherToTokenAtPrice(value, _rate);
-                _token = nomraliseUnit(_token);
+                _token = normaliseUnit(_token);
                 _ether = tokenToEtherAtPrice(_token, _rate);
                 balance[msg.sender].e = safeSub(balance[msg.sender].e, _ether);
                 insertPos(_rate, _token, false);
@@ -228,9 +228,9 @@ contract exchange is owned, safeMath {
                 balance[msg.sender].e = safeSub(balance[msg.sender].e, _ret);
                 crediting(msg.sender, value - _back, false, true);
             } else {
-                _rate = nomraliseRate(rate);
+                _rate = normaliseRate(rate);
                 _token = etherToTokenAtPrice(value, _rate);
-                _token = nomraliseUnit(_token);
+                _token = normaliseUnit(_token);
                 _ether = tokenToEtherAtPrice(_token, _rate);
                 balance[msg.sender].e = safeSub(balance[msg.sender].e, _ether);
                 insertPos(_rate, _token, false);
@@ -241,9 +241,9 @@ contract exchange is owned, safeMath {
                 balance[msg.sender].e = safeSub(balance[msg.sender].e, value - _back);
                 crediting(msg.sender, _ret, false, true);
             } else {
-                _rate = nomraliseRate(rate);
+                _rate = normaliseRate(rate);
                 _token = etherToTokenAtPrice(value, _rate);
-                _token = nomraliseUnit(_token);
+                _token = normaliseUnit(_token);
                 _ether = tokenToEtherAtPrice(_token, _rate);
                 balance[msg.sender].e = safeSub(balance[msg.sender].e, _ether);
                 insertPos(_rate, _token, false);
