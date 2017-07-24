@@ -175,8 +175,9 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
             } else if ( announcements[id].Type == announcementType.transactionFeeRate || 
                         announcements[id].Type == announcementType.transactionFeeMin || 
                         announcements[id].Type == announcementType.transactionFeeMax || 
-                        announcements[id].Type == announcementType.transactionFeeBurn ) {
-                require( moduleHandler(moduleHandlerAddress).configureModule("token", announcements[id].Type, announcements[id]._uint) );
+                        announcements[id].Type == announcementType.transactionFeeBurn ||
+                        announcements[id].Type == announcementType.exchangeAddress ) {
+                require( moduleHandler(moduleHandlerAddress).configureModule("token", announcements[id].Type, announcements[id]._uint, announcements[id]._addr) );
             } else if ( announcements[id].Type == announcementType.providerPublicFunds || 
                         announcements[id].Type == announcementType.providerPrivateFunds || 
                         announcements[id].Type == announcementType.providerPrivateClientLimit || 
@@ -187,12 +188,12 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
                         announcements[id].Type == announcementType.providerGasProtect || 
                         announcements[id].Type == announcementType.providerInterestMinFunds || 
                         announcements[id].Type == announcementType.providerRentRate ) {
-                require( moduleHandler(moduleHandlerAddress).configureModule("provider", announcements[id].Type, announcements[id]._uint) );
+                require( moduleHandler(moduleHandlerAddress).configureModule("provider", announcements[id].Type, announcements[id]._uint, announcements[id]._addr) );
             } else if ( announcements[id].Type == announcementType.schellingRoundBlockDelay || 
                         announcements[id].Type == announcementType.schellingCheckRounds || 
                         announcements[id].Type == announcementType.schellingCheckAboves || 
                         announcements[id].Type == announcementType.schellingRate ) {
-                require( moduleHandler(moduleHandlerAddress).configureModule("schelling", announcements[id].Type, announcements[id]._uint) );
+                require( moduleHandler(moduleHandlerAddress).configureModule("schelling", announcements[id].Type, announcements[id]._uint, announcements[id]._addr) );
             } else if ( announcements[id].Type == announcementType.publisherMinAnnouncementDelay) {
                 minAnnouncementDelay = announcements[id]._uint;
             } else if ( announcements[id].Type == announcementType.publisherOppositeRate) {
