@@ -25,7 +25,7 @@ contract ico is safeMath, owned {
         uint256 corp;
     }
     
-    uint256 constant oneSegment = 1920;//40320;
+    uint256 constant oneSegment = 40320;
     
     address public tokenAddr;
     address public premiumAddr;
@@ -38,7 +38,7 @@ contract ico is safeMath, owned {
     uint256 constant icoExchangeRateM = 1e4;
     uint256 constant interestOnICO   = 25;
     uint256 constant interestOnICOM  = 1e3;
-    uint256 constant interestBlockDelay = 200;//720;
+    uint256 constant interestBlockDelay = 720;
     uint256 constant exchangeRateDelay = 125;
     bool public aborted;
     bool public closed;
