@@ -95,9 +95,6 @@ contract module {
         if ( _balance > 0 ) {
             require( abstractModuleHandler(moduleHandlerAddress).transfer(address(this), newModuleAddress, _balance, false) );
         }
-        if ( this.balance > 0 ) {
-            require( newModuleAddress.send(this.balance) );
-        }
         moduleStatus = status.Disconnected;
     }
     
