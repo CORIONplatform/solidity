@@ -11,12 +11,12 @@ import "./schelling.sol";
 import "./premium.sol";
 import "./ico.sol";
 
-contract abstractModule {
+contract abstractModule is announcementTypes {
     function connectModule() external returns (bool success) {}
     function disconnectModule() external returns (bool success) {}
     function replaceModule(address addr) external returns (bool success) {}
     function disableModule(bool forever) external returns (bool success) {}
-    function configureModule(announcementType aType, uint256 value, address addr) onlyForModuleHandler external returns(bool success) {}
+    function configureModule(announcementType aType, uint256 value, address addr) external returns(bool success) {}
     function isActive() public constant returns (bool success) {}
     function replaceModuleHandler(address newHandler) external returns (bool success) {}
     function transferEvent(address from, address to, uint256 value) external returns (bool success) {}
