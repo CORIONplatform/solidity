@@ -26,6 +26,16 @@ contract token is safeMath, module, announcementTypes {
         super._replaceModule(addr);
         return true;
     }
+    function configureModule(announcementType aType, uint256 value, address addr) onlyForModuleHandler external returns(bool success) {
+        if      ( aType == announcementType.transactionFeeRate )    { transactionFeeRate = value; }
+        else if ( aType == announcementType.transactionFeeMin )     { transactionFeeMin = value; }
+        else if ( aType == announcementType.transactionFeeMax )     { transactionFeeMax = value; }
+        else if ( aType == announcementType.transactionFeeBurn )    { transactionFeeBurn = value; }
+        else if ( aType == announcementType.exchangeAddress )       { exchangeAddress = addr; }
+        else { return false; }
+        super._configureModule(value, addr);
+        return true;
+    }
     modifier isReady {
         var (_success, _active) = super.isActive();
         require( _success && _active ); 
@@ -300,23 +310,6 @@ contract token is safeMath, module, announcementTypes {
         */
         require( super.isModuleHandler(msg.sender) );
         _burn(owner, value);
-        return true;
-    }
-    function configure(announcementType aType, uint256 value) isReady external returns(bool success) {
-        /*
-            Token settings configuration.It  can be call only by moduleHandler
-           
-            @aType      Type of setting
-            @value      Value
-            
-            @success    Was the Function successful?
-        */
-        require( super.isModuleHandler(msg.sender) );
-        if      ( aType == announcementType.transactionFeeRate )    { transactionFeeRate = value; }
-        else if ( aType == announcementType.transactionFeeMin )     { transactionFeeMin = value; }
-        else if ( aType == announcementType.transactionFeeMax )     { transactionFeeMax = value; }
-        else if ( aType == announcementType.transactionFeeBurn )    { transactionFeeBurn = value; }
-        else { return false; }
         return true;
     }
     function _transferToContract(address from, address to, uint256 amount, bytes extraData) internal {
