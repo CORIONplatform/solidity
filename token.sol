@@ -1,6 +1,5 @@
 pragma solidity ^0.4.11;
 
-import "./announcementTypes.sol";
 import "./safeMath.sol";
 import "./module.sol";
 import "./moduleHandler.sol";
@@ -12,7 +11,7 @@ contract thirdPartyContractAbstract {
     function approvedCorionToken(address, uint256, bytes) external returns (bool) {}
 }
 
-contract token is safeMath, module, announcementTypes {
+contract token is safeMath, module {
     /*
         module callbacks
     */
@@ -33,7 +32,7 @@ contract token is safeMath, module, announcementTypes {
         else if ( aType == announcementType.transactionFeeBurn )    { transactionFeeBurn = value; }
         else if ( aType == announcementType.exchangeAddress )       { exchangeAddress = addr; }
         else { return false; }
-        super._configureModule(value, addr);
+        super._configureModule(aType, value, addr);
         return true;
     }
     modifier isReady {
