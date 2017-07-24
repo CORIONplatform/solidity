@@ -7,7 +7,7 @@ contract abstractModuleHandler {
     function balanceOf(address owner) public constant returns (bool success, uint256 value) {}
 }
 
-contract module is announcementType {
+contract module is announcementTypes {
     /*
         Module
     */
@@ -108,7 +108,7 @@ contract module is announcementType {
     }
     
     function configureModule(announcementType aType, uint256 value, address addr) onlyForModuleHandler external returns(bool success) {
-        _configureModule();
+        _configureModule(aType, value, addr);
         return true;
     }
     function _configureModule(announcementType aType, uint256 value, address addr) internal {}
