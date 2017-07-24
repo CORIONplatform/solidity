@@ -1,6 +1,6 @@
 pragma solidity ^0.4.11;
 
-contract ownedDB {
+contract owned {
     address private owner;
     
     function replaceOwner(address newOwner) external returns(bool) {
