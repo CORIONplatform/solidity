@@ -172,7 +172,7 @@ contract moduleHandler is multiOwner, announcementTypes {
             return true;
         }
         var (_success, _found, _id) = getModuleIDByName(moduleName);
-        require( _success && _found );
+        require( _success);
         require( abstractModule(modules[_id].addr).replaceModule(newModule) );
         return true;
     }
@@ -229,7 +229,7 @@ contract moduleHandler is multiOwner, announcementTypes {
             return true;
         }
         var (_success, _found, _id) = getModuleIDByName(moduleName);
-        require( _success && _found );
+        require( _success);
         require( abstractModule(modules[_id].addr).disableModule(true) );
         return true;
     }
@@ -405,7 +405,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         require( token(modules[_id].addr).burn(from, value) );
         return true;
     }
-    function configureModule(string moduleName, announcementType aType, uint256 value) external returns (bool success) {
+    function configureModule(string moduleName, announcementType aType, uint256 value, address addr) external returns (bool success) {
         /*
             Changing configuration of a module. Can be called only by Publisher or while debug mode by owners.
             
@@ -418,13 +418,13 @@ contract moduleHandler is multiOwner, announcementTypes {
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
             require( block.number < debugModeUntil );
-            if ( ! insertAndCheckDo(calcDoHash("configureModule", sha3(moduleName, aType, value))) ) {
+            if ( ! insertAndCheckDo(calcDoHash("configureModule", sha3(moduleName, aType, value, addr))) ) {
                 return true;
             }
         }
         (_success, _found, _id) = getModuleIDByName(moduleName);
         require( _success && _found );
-        require( schelling(modules[_id].addr).configure(aType, value) );
+        require( token(modules[_id].addr).configure(aType, value, addr) );
         return true;
     }
     function freezing(bool forever) external {
