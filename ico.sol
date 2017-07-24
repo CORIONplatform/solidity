@@ -62,7 +62,7 @@ contract ico is safeMath, owned {
         */
         foundationAddress = foundation;
         icoExchangeRate = exchangeRate;
-        icoExchangeRateSetBlock = block.number + exchangeRateDelay;
+        icoExchangeRateSetBlock = safeAdd(block.number, exchangeRateDelay);
         icoEtcPriceAddr = priceSet;
         owner = msg.sender;
         if ( startBlockNum > 0 ) {
@@ -71,10 +71,9 @@ contract ico is safeMath, owned {
         } else {
             startBlock = block.number;
         }
-        icoLevels.push(icoLevels_s(startBlock + oneSegment * 2, 3));
-        icoLevels.push(icoLevels_s(startBlock + oneSegment * 1, 5));
-        icoLevels.push(icoLevels_s(startBlock, 8));
-        icoDelay = startBlock + oneSegment * 3;
+        icoLevels.push(icoLevels_s(safeAdd(startBlock, oneSegment) * 1, 3));
+        icoLevels.push(icoLevels_s(safeAdd(startBlock, 8));
+        icoDelay = startBlock + oneSegment * 2;
         for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
             interestDB[genesisAddr[a]][0].amount = genesisValue[a];
         }
@@ -98,7 +97,7 @@ contract ico is safeMath, owned {
             @success    Was the process successful or not
         */
         require( tokenAddr == msg.sender );
-        uint256 _num = (block.number - startBlock) / interestBlockDelay;
+        uint256 _num = safeSub(block.number, startBlock) / interestBlockDelay;
         interestDB[addr][_num].amount = balance;
         if ( balance == 0 ) { 
             interestDB[addr][_num].empty = true;
@@ -119,7 +118,7 @@ contract ico is safeMath, owned {
         bool _empty;
         interest_s memory _idb;
         address _addr = beneficiary;
-        uint256 _to = (block.number - startBlock) / interestBlockDelay;
+        uint256 _to = safeSub(block.number - startBlock) / interestBlockDelay;
         if ( _addr == 0x00 ) { _addr = msg.sender; }
         
         require( block.number > icoDelay );
@@ -130,7 +129,7 @@ contract ico is safeMath, owned {
             _idb = interestDB[msg.sender][r];
             if ( _idb.amount > 0 ) {
                 if ( _empty ) {
-                    _lastBal = _idb.amount + _amount;
+                    _lastBal = safeAdd(_idb.amount, _amount);
                 } else {
                     _lastBal = _idb.amount;
                 }
@@ -139,9 +138,9 @@ contract ico is safeMath, owned {
                 _lastBal = 0;
                 _empty = _idb.empty;
             }
-            _lastBal += _tamount;
+            _lastBal = safeAdd(_lastBal, _tamount);
             _tamount = _lastBal * interestOnICO / interestOnICOM / 100;
-            _amount += _tamount;
+            _amount = safeAdd(_amount, _tamount);
             delete interestDB[msg.sender][r];
         }
         
@@ -170,7 +169,7 @@ contract ico is safeMath, owned {
         */
         require( isICO() );
         require( isOwner() );
-        icoDelay += oneSegment;
+        icoDelay = safeAdd(icoDelay, oneSegment);
     }
     function closeICO() external {
         /*
@@ -218,7 +217,7 @@ contract ico is safeMath, owned {
             @tokenContractAddr      Address of the corion token contract.
             @premiumContractAddr    Address of the corion premium token contract
         */
-        require( msg.sender == owner );
+        require( isOwner() );
         require( tokenAddr == 0x00 && premiumAddr == 0x00 );
         tokenAddr = tokenContractAddr;
         premiumAddr = premiumContractAddr;
@@ -233,7 +232,7 @@ contract ico is safeMath, owned {
         require( brought[msg.sender].eth > 0 );
         uint256 _val = brought[msg.sender].eth * 90 / 100;
         delete brought[msg.sender];
-        require( msg.sender.send(_val) );
+        require( msg.sender.call.gas(90000).value(_val) );
     }
     function buy(address beneficiaryAddress, address affilateAddress) payable returns (bool success) {
         /*
@@ -303,7 +302,7 @@ contract ico is safeMath, owned {
         uint256 _tamount;
         bool _empty;
         interest_s memory _idb;
-        uint256 _to = (block.number - startBlock) / interestBlockDelay;
+        uint256 _to = safeSub(block.number - startBlock) / interestBlockDelay;
         
         if ( _to == 0 || aborted ) { return 0; }
         
@@ -312,7 +311,7 @@ contract ico is safeMath, owned {
             _idb = interestDB[addr][r];
             if ( _idb.amount > 0 ) {
                 if ( _empty ) {
-                    _lastBal = _idb.amount + amount;
+                    _lastBal = safeAdd(_idb.amount, amount);
                 } else {
                     _lastBal = _idb.amount;
                 }
@@ -321,9 +320,9 @@ contract ico is safeMath, owned {
                 _lastBal = 0;
                 _empty = _idb.empty;
             }
-            _lastBal += _tamount;
+            _lastBal = safeAdd(_lastBal, _tamount);
             _tamount = _lastBal * interestOnICO / interestOnICOM / 100;
-            amount += _tamount;
+            amount = safeAdd(amount, _tamount);
         }
     }
     function ICObonus() public constant returns(uint256 bonus) {
