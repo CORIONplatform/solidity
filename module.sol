@@ -145,4 +145,9 @@ contract module is announcementTypes {
         require( msg.sender == moduleHandlerAddress );
         _;
     }
+    modifier readyModule() {
+        var (_success, _active) = isActive();
+        require( _success && _active ); 
+        _;
+    }
 }
