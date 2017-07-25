@@ -3,7 +3,6 @@ pragma solidity ^0.4.11;
 import "./module.sol";
 import "./announcementTypes.sol";
 import "./multiOwner.sol";
-
 import "./publisher.sol";
 import "./token.sol";
 import "./provider.sol";
@@ -24,19 +23,17 @@ contract abstractModule is announcementTypes {
 }
 
 contract moduleHandler is multiOwner, announcementTypes {
-    
     struct modules_s {
         address addr;
         bytes32 name;
         bool schellingEvent;
         bool transferEvent;
     }
-    
     modules_s[] public modules;
     uint256 public debugModeUntil = block.number + 1000000;
-    
     function moduleHandler(address[] newOwners) multiOwner(newOwners) {}
-    function load(bool forReplace, address Token, address Premium, address Publisher, address Schelling, address Provider) {
+    
+    function load(bool forReplace, address Token, address Premium, address Publisher, address Schelling, address Provider) external {
         /*
             Loading modulest to ModuleHandler.
             
@@ -57,88 +54,6 @@ contract moduleHandler is multiOwner, announcementTypes {
         addModule( modules_s(Publisher,  sha3('Publisher'),  false, true),   ! forReplace);
         addModule( modules_s(Schelling,  sha3('Schelling'),  false, true),   ! forReplace);
         addModule( modules_s(Provider,   sha3('Provider'),   true, true),    ! forReplace);
-    }
-    function addModule(modules_s input, bool call) internal {
-        /*
-            Inside function for registration of the modules in the database.
-            If the call is false, wont happen any direct call.
-            
-            @input  Structure of module.
-            @call   Is connect to the module or not.
-        */
-        if ( call ) { require( abstractModule(input.addr).connectModule() ); }
-        var (_success, _found, _id) = getModuleIDByAddress(input.addr);
-        require( _success && ! _found );
-        (_success, _found, _id) = getModuleIDByHash(input.name);
-        require( _success && ! _found );
-        (_success, _found, _id) = getModuleIDByAddress(0x00);
-        require( _success );
-        if ( ! _found ) {
-            _id = modules.length;
-            modules.length++;
-        }
-        modules[_id] = input;
-    }
-    function getModuleAddressByName(string name) public constant returns( bool success, bool found, address addr ) {
-        /*
-            Search by name for module. The result is an Ethereum address.
-            
-            @name       Name of module.
-            
-            @success    Was the Function successful?
-            @addr       Address of module.
-            @found      Is there any result.
-            @success    Was the transaction succesfull or not.
-        */
-        var (_success, _found, _id) = getModuleIDByName(name);
-        if ( _success && _found ) { return (true, true, modules[_id].addr); }
-        return (true, false, 0x00);
-    }
-    function getModuleIDByHash(bytes32 hashOfName) public constant returns( bool success, bool found, uint256 id ) {
-        /*
-            Search by hash of name in the module array. The result is an index array.
-            
-            @name       Name of module.
-            
-            @success    Was the Function successful?
-            @id         Index of module.
-            @found      Was there any result or not.
-        */
-        for ( uint256 a=0 ; a<modules.length ; a++ ) {
-            if ( modules[a].name == hashOfName ) {
-                return (true, true, a);
-            }
-        }
-        return (true, false, 0);
-    }
-    function getModuleIDByName(string name) public constant returns( bool success, bool found, uint256 id ) {
-        /*
-            Search by name for module. The result is an index array.
-            
-            @name       Name of module.
-            
-            @success    Was the Function successful?
-            @id         Index of module.
-            @found      Was there any result or not.
-        */
-        return getModuleIDByHash(sha3(name));
-    }
-    function getModuleIDByAddress(address addr) public constant returns( bool success, bool found, uint256 id ) {
-        /*
-            Search by ethereum address for module. The result is an index array.
-            
-            @address    Address of the module
-            
-            @success    Was the Function successful?
-            @id         Index of module.
-            @found      Was there any result or not.
-        */
-        for ( uint256 a=0 ; a<modules.length ; a++ ) {
-            if ( modules[a].addr == addr ) {
-                return (true, true, a);
-            }
-        }
-        return (true, false, 0);
     }
     function replaceModule(string name, address addr, bool callCallback) external returns (bool success) {
         /*
@@ -167,7 +82,6 @@ contract moduleHandler is multiOwner, announcementTypes {
         modules[_id].addr = addr;
         return true;
     }
-    
     function callReplaceCallback(string moduleName, address newModule) external returns (bool success) {
         require( block.number < debugModeUntil );
         if ( ! insertAndCheckDo(calcDoHash("callReplaceCallback", sha3(moduleName, newModule))) ) {
@@ -178,7 +92,6 @@ contract moduleHandler is multiOwner, announcementTypes {
         require( abstractModule(modules[_id].addr).replaceModule(newModule) );
         return true;
     }
-    
     function newModule(string name, address addr, bool schellingEvent, bool transferEvent) external returns (bool success) {
         /*
             Adding new module to the database. Can be called only by the Publisher contract or while debug mode by owners.
@@ -226,7 +139,6 @@ contract moduleHandler is multiOwner, announcementTypes {
         delete modules[_id];
         return true;
     }
-    
     function callDisableCallback(string moduleName) external returns (bool success) {
         require( block.number < debugModeUntil );
         if ( ! insertAndCheckDo(calcDoHash("callDisableCallback", sha3(moduleName))) ) {
@@ -237,7 +149,6 @@ contract moduleHandler is multiOwner, announcementTypes {
         require( abstractModule(modules[_id].addr).disableModule(true) );
         return true;
     }
-    
     function broadcastTransfer(address from, address to, uint256 value) external returns (bool success) {
         /*
             Announcing transactions for the modules.
@@ -303,52 +214,6 @@ contract moduleHandler is multiOwner, announcementTypes {
             require( abstractModule(modules[a].addr).replaceModuleHandler(newHandler) );
         }
         return true;
-    }
-    function balanceOf(address owner) public constant returns (bool success, uint256 value) {
-        /*
-            Query of token balance.
-            
-            @owner      Address
-            
-            @success    Was the Function successful?
-            @value      Balance
-        */
-        var (_success, _found, _id) = getModuleIDByName('Token');
-        require( _success && _found );
-        return (true, token(modules[_id].addr).balanceOf(owner));
-    }
-    function totalSupply() public constant returns (bool success, uint256 value) {
-        /*
-            Query of the whole token amount.
-            
-            @value      Amount
-            @success    Was the function successfull?
-        */
-        var (_success, _found, _id) = getModuleIDByName('Token');
-        require( _success && _found );
-        return (true, token(modules[_id].addr).totalSupply());
-    }
-    function isICO() public constant returns (bool success, bool ico) {
-        /*
-            Query of ICO state
-            
-            @ico        Is ICO in progress?
-            @success    Was the function successfull?
-        */
-        var (_success, _found, _id) = getModuleIDByName('Token');
-        require( _success && _found );
-        return (true, token(modules[_id].addr).isICO());
-    }
-    function getCurrentSchellingRoundID() public constant returns (bool success, uint256 round) {
-        /*
-            Query of number of the actual Schelling round.
-            
-            @round      Schelling round.
-            @success    Was the function successfull?
-        */
-        var (_success, _found, _id) = getModuleIDByName('Schelling');
-        require( _success && _found );
-        return (true, schelling(modules[_id].addr).getCurrentSchellingRoundID());
     }
     function mint(address to, uint256 value) external returns (bool success) {
         /*
@@ -455,5 +320,135 @@ contract moduleHandler is multiOwner, announcementTypes {
         for ( uint256 a=0 ; a<modules.length ; a++ ) {
             require( abstractModule(modules[a].addr).disableModule(forever) );
         }
+    }
+    
+    function addModule(modules_s input, bool call) internal {
+        /*
+            Inside function for registration of the modules in the database.
+            If the call is false, wont happen any direct call.
+            
+            @input  Structure of module.
+            @call   Is connect to the module or not.
+        */
+        if ( call ) { require( abstractModule(input.addr).connectModule() ); }
+        var (_success, _found, _id) = getModuleIDByAddress(input.addr);
+        require( _success && ! _found );
+        (_success, _found, _id) = getModuleIDByHash(input.name);
+        require( _success && ! _found );
+        (_success, _found, _id) = getModuleIDByAddress(0x00);
+        require( _success );
+        if ( ! _found ) {
+            _id = modules.length;
+            modules.length++;
+        }
+        modules[_id] = input;
+    }
+    
+    function balanceOf(address owner) public constant returns (bool success, uint256 value) {
+        /*
+            Query of token balance.
+            
+            @owner      Address
+            
+            @success    Was the Function successful?
+            @value      Balance
+        */
+        var (_success, _found, _id) = getModuleIDByName('Token');
+        require( _success && _found );
+        return (true, token(modules[_id].addr).balanceOf(owner));
+    }
+    function totalSupply() public constant returns (bool success, uint256 value) {
+        /*
+            Query of the whole token amount.
+            
+            @value      Amount
+            @success    Was the function successfull?
+        */
+        var (_success, _found, _id) = getModuleIDByName('Token');
+        require( _success && _found );
+        return (true, token(modules[_id].addr).totalSupply());
+    }
+    function isICO() public constant returns (bool success, bool ico) {
+        /*
+            Query of ICO state
+            
+            @ico        Is ICO in progress?
+            @success    Was the function successfull?
+        */
+        var (_success, _found, _id) = getModuleIDByName('Token');
+        require( _success && _found );
+        return (true, token(modules[_id].addr).isICO());
+    }
+    function getCurrentSchellingRoundID() public constant returns (bool success, uint256 round) {
+        /*
+            Query of number of the actual Schelling round.
+            
+            @round      Schelling round.
+            @success    Was the function successfull?
+        */
+        var (_success, _found, _id) = getModuleIDByName('Schelling');
+        require( _success && _found );
+        return (true, schelling(modules[_id].addr).getCurrentSchellingRoundID());
+    }
+    function getModuleAddressByName(string name) public constant returns( bool success, bool found, address addr ) {
+        /*
+            Search by name for module. The result is an Ethereum address.
+            
+            @name       Name of module.
+            
+            @success    Was the Function successful?
+            @addr       Address of module.
+            @found      Is there any result.
+            @success    Was the transaction succesfull or not.
+        */
+        var (_success, _found, _id) = getModuleIDByName(name);
+        if ( _success && _found ) { return (true, true, modules[_id].addr); }
+        return (true, false, 0x00);
+    }
+    function getModuleIDByHash(bytes32 hashOfName) public constant returns( bool success, bool found, uint256 id ) {
+        /*
+            Search by hash of name in the module array. The result is an index array.
+            
+            @name       Name of module.
+            
+            @success    Was the Function successful?
+            @id         Index of module.
+            @found      Was there any result or not.
+        */
+        for ( uint256 a=0 ; a<modules.length ; a++ ) {
+            if ( modules[a].name == hashOfName ) {
+                return (true, true, a);
+            }
+        }
+        return (true, false, 0);
+    }
+    function getModuleIDByName(string name) public constant returns( bool success, bool found, uint256 id ) {
+        /*
+            Search by name for module. The result is an index array.
+            
+            @name       Name of module.
+            
+            @success    Was the Function successful?
+            @id         Index of module.
+            @found      Was there any result or not.
+        */
+        return getModuleIDByHash(sha3(name));
+    }
+    function getModuleIDByAddress(address addr) public constant returns( bool success, bool found, uint256 id ) {
+        /*
+            Search by ethereum address for module. The result is an index array.
+            
+            @address    Address of the module
+            
+            @success    Was the Function successful?
+            @id         Index of module.
+            @found      Was there any result or not.
+        */
+        for ( uint256 a=0 ; a<modules.length ; a++ ) {
+            if ( modules[a].addr == addr ) {
+                return (true, true, a);
+            }
+        }
+        return (true, false, 0);
     }
 }
