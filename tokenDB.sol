@@ -3,7 +3,7 @@ pragma solidity ^0.4.11;
 import "./safeMath.sol";
 import "./owned.sol";
 
-contract tokenDB is safeMath, ownedDB {
+contract tokenDB is safeMath, owned {
 
     struct allowance_s {
         uint256 amount;
