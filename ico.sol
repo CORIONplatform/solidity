@@ -184,13 +184,14 @@ contract ico is safeMath, owned {
             The 96% of the whole amount of the token is generated to the address of the fundation.
             Ethers which are situated in this contract will be sent to the address of the fundation.
         */
+        
         require( isOwner() );
         require( block.number > icoDelay );
         require( ! closed );
         closed = true;
         require( ! aborted );
+        var totalPremiumSupply = premium(premiumAddr).totalSupply();
         var totalTokenSupply = token(tokenAddr).totalSupply();
-        var totalPremiumSupply = premium(tokenAddr).totalSupply();
         require( token(tokenAddr).mint(foundationAddress, totalTokenSupply * 96 / 100) );
         uint256 tPAmount = totalTokenSupply / 5e9;
         uint256 fPAmount = safeSub(tPAmount, totalPremiumSupply);
