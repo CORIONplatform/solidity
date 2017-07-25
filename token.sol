@@ -1,3 +1,6 @@
+/*
+    token.sol
+*/
 pragma solidity ^0.4.11;
 
 import "./safeMath.sol";
@@ -12,9 +15,7 @@ contract thirdPartyContractAbstract {
 }
 
 contract token is safeMath, module {
-    /*
-        module callbacks
-    */
+    /* module callbacks */
     function connectModule() external onlyForModuleHandler returns (bool success) {
         super._connectModule();
         isICO = ico(icoAddr).isICO();
@@ -39,25 +40,24 @@ contract token is safeMath, module {
         require( _success && _active ); 
         _;
     }
+    /* Variables */
     /**
     * @title Corion Platform Token
     * @author iFA @ Corion Platform
     */
-    string public name = "Corion";
-    string public symbol = "COR";
-    uint8 public decimals = 6;
-    
+    string  public name = "Corion";
+    string  public symbol = "COR";
+    uint8   public decimals = 6;
     tokenDB public db;
     address public icoAddr;
-    uint256 public transactionFeeRate      = 20;
-    uint256 public transactionFeeRateM     = 1e3;
-    uint256 public transactionFeeMin       =   20000;
-    uint256 public transactionFeeMax       = 5000000;
-    uint256 public transactionFeeBurn      = 80;
+    uint256 public transactionFeeRate   = 20;
+    uint256 public transactionFeeRateM  = 1e3;
+    uint256 public transactionFeeMin    =   20000;
+    uint256 public transactionFeeMax    = 5000000;
+    uint256 public transactionFeeBurn   = 80;
     bool    public isICO;
-    
     mapping(address => bool) public genesis;
-    
+    /* Constructor */
     function token(bool forReplace, address moduleHandler, address dbAddr,
         address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) payable {
         /*
@@ -88,6 +88,7 @@ contract token is safeMath, module {
             }
         }
     }
+    /* Externals */
     function closeIco() external returns (bool success) {
         /*
             ICO finished. It can be called only by ICO contract
@@ -305,6 +306,7 @@ contract token is safeMath, module {
         _burn(owner, value);
         return true;
     }
+    /* Internals */
     function _transferToContract(address from, address to, uint256 amount, bytes extraData) internal {
         /*
             Internal function to start transactions to a contract
@@ -434,6 +436,7 @@ contract token is safeMath, module {
         }
         return _codeLength > 0;
     }
+    /* Constants */
     function allowance(address owner, address spender) constant returns (uint256 remaining, uint256 nonce) {
         /*
             Get the quantity of tokens given to be used
@@ -481,7 +484,7 @@ contract token is safeMath, module {
         */
         return db.totalSupply();
     }
-    
+    /* Events */
     event AllowanceUsed(address indexed spender, address indexed owner, uint256 indexed value);
     event Mint(address indexed addr, uint256 indexed value);
     event Burn(address indexed addr, uint256 indexed value);
