@@ -35,11 +35,6 @@ contract token is safeMath, module {
         super._configureModule(aType, value, addr);
         return true;
     }
-    modifier isReady {
-        var (_success, _active) = super.isActive();
-        require( _success && _active ); 
-        _;
-    }
     /* Variables */
     /**
     * @title Corion Platform Token
@@ -106,7 +101,7 @@ contract token is safeMath, module {
      * @param nonce The transaction count of the authorised address
      * @return True if the approval was successful
      */
-    function approve(address spender, uint256 amount, uint256 nonce) isReady external returns (bool success) {
+    function approve(address spender, uint256 amount, uint256 nonce) readyModule external returns (bool success) {
 
         /*
             Authorise another address to use a certain quantity of the authorising owner’s balance
@@ -128,7 +123,7 @@ contract token is safeMath, module {
      * @param extraData Data to give forward to the receiver
      * @return True if the approval was successful
      */
-    function approveAndCall(address spender, uint256 amount, uint256 nonce, bytes extraData) isReady external returns (bool success) {
+    function approveAndCall(address spender, uint256 amount, uint256 nonce, bytes extraData) readyModule external returns (bool success) {
         /*
             Authorise another address to use a certain quantity of the authorising  owner’s balance
             Following the transaction the receiver address `approvedCorionToken` function is called by the given data
@@ -150,7 +145,7 @@ contract token is safeMath, module {
      * @param amount The amount of tokens to be transferred
      * @return Whether the transfer was successful or not
      */
-    function transfer(address to, uint256 amount) isReady external returns (bool success) {
+    function transfer(address to, uint256 amount) readyModule external returns (bool success) {
         /*
             Start transaction, token is sent from caller’s address to receiver’s address
             Transaction fee is to be deducted.
@@ -177,7 +172,7 @@ contract token is safeMath, module {
      * @param amount The amount of tokens to be transferred
      * @return True if the transfer was successful
      */
-    function transferFrom(address from, address to, uint256 amount) isReady external returns (bool success) {
+    function transferFrom(address from, address to, uint256 amount) readyModule external returns (bool success) {
 
         /*
             Start transaction to send a quantity from a given address to another address. (approve / allowance). This can be called only by the address approved in advance
@@ -214,7 +209,7 @@ contract token is safeMath, module {
      * @param amount The amount of tokens to be transferred
      * @return True if the transfer was successful
      */
-    function transferFromByModule(address from, address to, uint256 amount, bool fee) isReady external returns (bool success) {
+    function transferFromByModule(address from, address to, uint256 amount, bool fee) readyModule external returns (bool success) {
 
         /*
             Start transaction to send a quantity from a given address to another address
@@ -240,7 +235,7 @@ contract token is safeMath, module {
      * @param extraData Data to give forward to the receiver
      * @return Whether the transfer was successful or not
      */
-    function transfer(address to, uint256 amount, bytes extraData) isReady external returns (bool success) {
+    function transfer(address to, uint256 amount, bytes extraData) readyModule external returns (bool success) {
 
         /*
             Start transaction to send a quantity from a given address to another address
@@ -267,7 +262,7 @@ contract token is safeMath, module {
      * @param value The base for calculating the fee
      * @return True if the transfer was successful
      */
-    function processTransactionFee(address owner, uint256 value) isReady external returns (bool success) {
+    function processTransactionFee(address owner, uint256 value) readyModule external returns (bool success) {
         /*
             Charge transaction fee. It can be called only by moduleHandler  
         
@@ -280,7 +275,7 @@ contract token is safeMath, module {
         _processTransactionFee(owner, value);
         return true;
     }
-    function mint(address owner, uint256 value) isReady external returns (bool success) {
+    function mint(address owner, uint256 value) readyModule external returns (bool success) {
         /*
             Generating tokens. It can be called only by ICO contract or the moduleHandler.
             
@@ -293,7 +288,7 @@ contract token is safeMath, module {
         _mint(owner, value);
         return true;
     }
-    function burn(address owner, uint256 value) isReady external returns (bool success) {
+    function burn(address owner, uint256 value) readyModule external returns (bool success) {
         /*
             Burning the token. Can call only modulehandler
             
