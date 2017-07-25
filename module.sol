@@ -1,3 +1,6 @@
+/*
+    module.sol
+*/
 pragma solidity ^0.4.11;
 
 import "./announcementTypes.sol";
@@ -8,25 +11,51 @@ contract abstractModuleHandler {
 }
 
 contract module is announcementTypes {
-    /*
-        Module
-    */
-    
+    /* Enumerations */
     enum status {
         New,
         Connected,
         Disconnected,
         Disabled
     }
-    
+    /* Variables */
     status public moduleStatus;
     uint256 public disabledUntil;
     address public moduleHandlerAddress;
-    
+    /* Externals */
     function disableModule(bool forever) external onlyForModuleHandler returns (bool success) {
         _disableModule(forever);
         return true;
     }
+    function replaceModuleHandler(address newModuleHandlerAddress) external onlyForModuleHandler returns (bool success) {
+        _replaceModuleHandler(newModuleHandlerAddress);
+        return true;
+    }
+    function connectModule() external onlyForModuleHandler returns (bool success) {
+        _connectModule();
+        return true;
+    }
+    function disconnectModule() external onlyForModuleHandler returns (bool success) {
+        _disconnectModule();
+        return true;
+    }
+    function replaceModule(address newModuleAddress) external onlyForModuleHandler returns (bool success) {
+        _replaceModule(newModuleAddress);
+        return true;
+    }
+    function transferEvent(address from, address to, uint256 value) external onlyForModuleHandler returns (bool success) {
+        _transferEvent(from, to, value);
+        return true;
+    }
+    function configureModule(announcementType aType, uint256 value, address addr) onlyForModuleHandler external returns(bool success) {
+        _configureModule(aType, value, addr);
+        return true;
+    }
+    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external onlyForModuleHandler returns (bool success) {
+        _newSchellingRoundEvent(roundID, reward);
+        return true;
+    }
+    /* Internals */
     function _disableModule(bool forever) internal {
         /*
             Disable the module for one week, if the forever true then for forever.
@@ -36,11 +65,6 @@ contract module is announcementTypes {
         */
         if ( forever ) { moduleStatus = status.Disabled; }
         else { disabledUntil = block.number + 5760; }
-    }
-    
-    function replaceModuleHandler(address newModuleHandlerAddress) external onlyForModuleHandler returns (bool success) {
-        _replaceModuleHandler(newModuleHandlerAddress);
-        return true;
     }
     function _replaceModuleHandler(address newModuleHandlerAddress) internal {
         /*
@@ -52,11 +76,6 @@ contract module is announcementTypes {
         require( moduleStatus == status.Connected );
         moduleHandlerAddress = newModuleHandlerAddress;
     }
-    
-    function connectModule() external onlyForModuleHandler returns (bool success) {
-        _connectModule();
-        return true;
-    }
     function _connectModule() internal {
         /*
             Registering and/or connecting-to ModuleHandler.
@@ -65,11 +84,6 @@ contract module is announcementTypes {
         require( moduleStatus == status.New );
         moduleStatus = status.Connected;
     }
-    
-    function disconnectModule() external onlyForModuleHandler returns (bool success) {
-        _disconnectModule();
-        return true;
-    }
     function _disconnectModule() internal {
         /*
             Disconnect the module from the ModuleHandler.
@@ -77,11 +91,6 @@ contract module is announcementTypes {
         */
         require( moduleStatus != status.New && moduleStatus != status.Disconnected );
         moduleStatus = status.Disconnected;
-    }
-    
-    function replaceModule(address newModuleAddress) external onlyForModuleHandler returns (bool success) {
-        _replaceModule(newModuleAddress);
-        return true;
     }
     function _replaceModule(address newModuleAddress) internal {
         /*
@@ -99,20 +108,9 @@ contract module is announcementTypes {
         }
         moduleStatus = status.Disconnected;
     }
-    
-    function transferEvent(address from, address to, uint256 value) external onlyForModuleHandler returns (bool success) {
-        return true;
-    }
-    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external onlyForModuleHandler returns (bool success) {
-        return true;
-    }
-    
-    function configureModule(announcementType aType, uint256 value, address addr) onlyForModuleHandler external returns(bool success) {
-        _configureModule(aType, value, addr);
-        return true;
-    }
+    function _transferEvent(address from, address to, uint256 value) internal {}
     function _configureModule(announcementType aType, uint256 value, address addr) internal {}
-    
+    function _newSchellingRoundEvent(uint256 roundID, uint256 reward) internal {}
     function registerModuleHandler(address _moduleHandlerAddress) internal {
         /*
             Module constructor function for registering ModuleHandler address.
@@ -132,6 +130,7 @@ contract module is announcementTypes {
         if ( moduleStatus != status.Connected ) { return false; }
         return addr == moduleHandlerAddress;
     }
+    /* Constants */
     function isActive() public constant returns (bool success, bool active) {
         /*
             Check self for ready for functions or not.
@@ -141,6 +140,7 @@ contract module is announcementTypes {
         */
         return (true, moduleStatus == status.Connected && block.number >= disabledUntil);
     }
+    /* Modifiers */
     modifier onlyForModuleHandler() {
         require( msg.sender == moduleHandlerAddress );
         _;
