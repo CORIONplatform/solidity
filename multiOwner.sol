@@ -1,33 +1,18 @@
+/*
+    multiOwner.sol
+*/
 pragma solidity ^0.4.11;
 
 import "./safeMath.sol";
 
 contract moduleMultiOwner {
     address public multiOwnerAddress;
-    
     mapping(bytes32 => address[]) public doDB;
-    
-    /*
-        Constructor
-    */
+    /* Constructor */
     function moduleMultiOwner(address _multiOwnerAddress) {
         multiOwnerAddress = _multiOwnerAddress;
     }
-    /*
-        Constants
-    */
-    function ownersForChange() public constant returns (uint256 owners) {
-        return multiOwner(multiOwnerAddress).ownersForChange();
-    }
-    function calcDoHash(string job, bytes32 data) public constant returns (bytes32 hash) {
-        return sha3(job, data);
-    }
-    function owners(address addr) public constant returns (bool valid) {
-        return multiOwner(multiOwnerAddress).owners(addr);
-    }
-    /*
-        Internals
-    */
+    /* Internals */
     function insertAndCheckDo(bytes32 doHash) internal returns (bool success) {
         require( owners(msg.sender) );
         if (doDB[doHash].length >= ownersForChange()) {
@@ -45,27 +30,38 @@ contract moduleMultiOwner {
             return false;
         }
     }
+    /* Constants */
+    function ownersForChange() public constant returns (uint256 owners) {
+        return multiOwner(multiOwnerAddress).ownersForChange();
+    }
+    function calcDoHash(string job, bytes32 data) public constant returns (bytes32 hash) {
+        return sha3(job, data);
+    }
+    function owners(address addr) public constant returns (bool valid) {
+        return multiOwner(multiOwnerAddress).owners(addr);
+    }
+    /* Modifiers */
+    modifier onlyOwner() {
+        /*
+            Only the owner is allowed to call it.      
+        */
+        require( owners(msg.sender) );
+        _;
+    }
 }
 
 contract multiOwner is safeMath {
-    
-    mapping(address => bool) public owners;
     uint256 public ownerCount;
     uint256 public constant doConfirmRate = 75;
-
+    mapping(address => bool) public owners;
     mapping(bytes32 => address[]) public doDB;
-    
-    /*
-        Constructor
-    */
+    /* Constructor */
     function multiOwner(address[] newOwners) {
         for ( uint256 a=0 ; a<newOwners.length ; a++ ) {
             _addOwner(newOwners[a]);
         }
     }
-    /*
-        Externals
-    */
+    /* Externals */
     function insertOwner(address addr) external {
         require( ! owners[addr]);
         if ( insertAndCheckDo(calcDoHash("insertOwner", sha3(addr))) ) {
@@ -83,21 +79,7 @@ contract multiOwner is safeMath {
             delete doDB[doHash];
         }
     }
-    /*
-        Constants
-    */
-    function ownersForChange() public constant returns (uint256 owners) {
-        return ownerCount * doConfirmRate / 100;
-    }
-    function calcDoHash(string job, bytes32 data) public constant returns (bytes32 hash) {
-        return sha3(job, data);
-    }
-    function validDoHash(bytes32 doHash) public constant returns (bool valid) {
-        return doDB[doHash].length > 0;
-    }
-    /*
-        Internals
-    */
+    /* Internals */
     function insertAndCheckDo(bytes32 doHash) internal returns (bool success) {
         require( owners[msg.sender] );
         if (doDB[doHash].length >= ownersForChange()) {
@@ -115,9 +97,17 @@ contract multiOwner is safeMath {
             return false;
         }
     }
-    /*
-        Privates
-    */
+    /* Constants */
+    function ownersForChange() public constant returns (uint256 owners) {
+        return ownerCount * doConfirmRate / 100;
+    }
+    function calcDoHash(string job, bytes32 data) public constant returns (bytes32 hash) {
+        return sha3(job, data);
+    }
+    function validDoHash(bytes32 doHash) public constant returns (bool valid) {
+        return doDB[doHash].length > 0;
+    }
+    /* Privates */
     function _addOwner(address addr) private {
         if ( owners[addr] ) { return; }
         owners[addr] = true;
