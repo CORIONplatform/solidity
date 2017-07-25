@@ -29,7 +29,7 @@ contract ico is safeMath, owned {
         uint256 corp;
     }
     /* Variables */
-    uint256 constant oneSegment = 40320;
+    uint256 constant oneSegment = 1920;//40320;
     address public tokenAddr;
     address public premiumAddr;
     uint256 public startBlock;
@@ -41,7 +41,7 @@ contract ico is safeMath, owned {
     uint256 constant icoExchangeRateM = 1e4;
     uint256 constant interestOnICO   = 25;
     uint256 constant interestOnICOM  = 1e3;
-    uint256 constant interestBlockDelay = 720;
+    uint256 constant interestBlockDelay = 200;//720;
     uint256 constant exchangeRateDelay = 125;
     bool public aborted;
     bool public closed;
@@ -184,7 +184,6 @@ contract ico is safeMath, owned {
             The 96% of the whole amount of the token is generated to the address of the fundation.
             Ethers which are situated in this contract will be sent to the address of the fundation.
         */
-        
         require( isOwner() );
         require( block.number > icoDelay );
         require( ! closed );
@@ -196,9 +195,9 @@ contract ico is safeMath, owned {
         uint256 tPAmount = totalTokenSupply / 5e9;
         uint256 fPAmount = safeSub(tPAmount, totalPremiumSupply);
         if ( (tPAmount * 20 / 100) > fPAmount ) {
-            fPAmount = (tPAmount * 20 / 100);
-        } else  if ( (tPAmount * 49 / 100) < fPAmount ) {
-            fPAmount = (tPAmount * 49 / 100);
+            fPAmount = tPAmount * 20 / 100;
+        } else if ( (tPAmount * 49 / 100) < fPAmount ) {
+            fPAmount = tPAmount * 49 / 100;
         }
         require( premium(premiumAddr).mint(foundationAddress, fPAmount) );
         require( foundationAddress.send(this.balance) );
