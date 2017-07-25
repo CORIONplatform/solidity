@@ -10,9 +10,7 @@ import "./safeMath.sol";
 import "./multiOwner.sol";
 
 contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
-    /*
-        module callbacks
-    */
+    /* module callbacks */
     function transferEvent(address from, address to, uint256 value) external onlyForModuleHandler returns (bool success) {
         /*
             Transaction completed. This function is available only for moduleHandler
@@ -35,9 +33,7 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
         }
         return true;
     }
-    /*
-        Structures
-    */
+    /* Structures */
     struct announcements_s {
         announcementType Type;
         uint256 start;
@@ -53,18 +49,14 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
         uint256 _uint;
         address _addr;
     }
-    /*
-        Variables
-    */
+    /* Variables */
     uint256 public minAnnouncementDelay = 40320;
     uint256 public minAnnouncementDelayOnICO = 17280;
     uint8 public oppositeRate = 33;
     uint256 public announcementsLength;
     mapping(uint256 => announcements_s) public announcements;
     mapping (address => uint256[]) public opponents;
-    /*
-        Constructor
-    */
+    /* Constructor */
     function publisher(address moduleHandler) moduleMultiOwner(moduleHandler){
         /*
             Installation function. The installer will be registered in the admin list automatically.
@@ -73,9 +65,7 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
         */
         super.registerModuleHandler(moduleHandler);
     }
-    /*
-        Externals
-    */
+    /* Externals */
     function newAnnouncement(announcementType Type, string Announcement, string Link, bool Oppositable,
         string _str, uint256 _uint, address _addr) external {
         /*
@@ -210,9 +200,17 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
         announcements[id].open = false;
         EInvalidateAnnouncement(id);
     }
-    /*
-        Constants
-    */
+    /* Internals */
+    function checkICO() internal returns (bool isICO) {
+        /*
+            Inner function to check the ICO status.
+            @bool       Is the ICO in proccess or not?
+        */
+        var (_success, _isICO) = moduleHandler(moduleHandlerAddress).isICO();
+        require( _success );
+        return _isICO;
+    }
+    /* Constants */
     function Announcements(uint256 id) public constant returns (announcementType Type, uint256 Start, uint256 End,
         bool Closed, string Announcement, string Link, bool Opposited, string _str, uint256 _uint, address _addr) {
         /*
@@ -258,21 +256,7 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
         require( _success );
         return _amount * oppositeRate / 100 > weight;
     }
-    /*
-        Internals
-    */
-    function checkICO() internal returns (bool isICO) {
-        /*
-            Inner function to check the ICO status.
-            @bool       Is the ICO in proccess or not?
-        */
-        var (_success, _isICO) = moduleHandler(moduleHandlerAddress).isICO();
-        require( _success );
-        return _isICO;
-    }
-    /*
-        Events
-    */
+    /* Events */
     event ENewAnnouncement(uint256 id, announcementType typ);
     event EOppositeAnnouncement(uint256 id, address addr, uint256 value);
     event EInvalidateAnnouncement(uint256 id);
