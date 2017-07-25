@@ -1,13 +1,17 @@
+/*
+    owned.sol
+*/
 pragma solidity ^0.4.11;
 
-contract ownedDB {
-    address private owner;
-    
-    function replaceOwner(address newOwner) external returns(bool) {
+contract owned {
+    address public owner;
+    function replaceOwner(address newOwner) external returns(bool success) {
         /*
             Owner replace.
             
             @newOwner   Address of new owner.
+            
+            @success    Was the Function successful?
         */
         require( isOwner() );
         owner = newOwner;
