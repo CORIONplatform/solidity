@@ -1,3 +1,6 @@
+/*
+    premium.sol
+*/
 pragma solidity ^0.4.11;
 
 import "./safeMath.sol";
@@ -13,9 +16,7 @@ contract thirdPartyPContractAbstract {
 contract ptokenDB is tokenDB {}
 
 contract premium is module, safeMath {
-    /*
-        module callbacks
-    */
+    /* Module callbacks */
     function connectModule() external onlyForModuleHandler returns (bool success) {
         super._connectModule();
         isICO = ico(icoAddr).isICO();
@@ -26,23 +27,19 @@ contract premium is module, safeMath {
         super._replaceModule(addr);
         return true;
     }
-    modifier isReady {
-        var (_success, _active) = super.isActive();
-        require( _success && _active ); 
-        _;
-    }
+    /* Variables */
     /**
     * @title Corion Platform Premium Token
     * @author iFA @ Corion Platform
     */
-    string public name = "Corion Premium";
-    string public symbol = "CORP";
-    uint8  public decimals = 0;
+    string  public name = "Corion Premium";
+    string  public symbol = "CORP";
+    uint8   public decimals = 0;
     address public icoAddr;
     tokenDB public db;
     bool    public  isICO;
     mapping(address => bool) public genesis;
-    
+    /* Constructor */
     function premium(bool forReplace, address moduleHandler, address dbAddress, address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) {
         /*
             Setup function.
@@ -69,6 +66,7 @@ contract premium is module, safeMath {
             }
         }
     }
+    /* Externals */
     function closeIco() external returns (bool success) {
         /*
             Finishing the ICO. Can be invited only by an ICO contract.
@@ -86,7 +84,7 @@ contract premium is module, safeMath {
      * @param nonce The transaction count of the authorised address
      * @return True if the approval was successful
      */
-    function approve(address spender, uint256 amount, uint256 nonce) isReady external returns (bool success) {
+    function approve(address spender, uint256 amount, uint256 nonce) readyModule external returns (bool success) {
         /*
             Authorize another address to use an exact amount of the principal’s balance.   
             
@@ -107,7 +105,7 @@ contract premium is module, safeMath {
      * @param extraData Data to give forward to the receiver
      * @return True if the approval was successful
      */
-    function approveAndCall(address spender, uint256 amount, uint256 nonce, bytes extraData) isReady external returns (bool success) {
+    function approveAndCall(address spender, uint256 amount, uint256 nonce, bytes extraData) readyModule external returns (bool success) {
         /*
             Authorize another address to use an exact amount of the principal’s balance.
             After the transaction the approvedCorionPremiumToken function of the address will be called with the given data.
@@ -129,7 +127,7 @@ contract premium is module, safeMath {
      * @param amount The amount of tokens to be transferred
      * @return Whether the transfer was successful or not
      */
-    function transfer(address to, uint256 amount) isReady external returns (bool success) {
+    function transfer(address to, uint256 amount) readyModule external returns (bool success) {
         /*
             Launch a transaction where the token is sent from the sender’s address to the receiver’s address.
             Transaction fee is going to be added as well.
@@ -156,7 +154,7 @@ contract premium is module, safeMath {
      * @param amount The amount of tokens to be transferred
      * @return True if the transfer was successful
      */
-    function transferFrom(address from, address to, uint256 amount) isReady external returns (bool success) {
+    function transferFrom(address from, address to, uint256 amount) readyModule external returns (bool success) {
         /*
             Launch a transaction where we transfer from a given address to another one. It can only be called by an address which was allowed before.
             Transaction fee will be charged too.
@@ -192,7 +190,7 @@ contract premium is module, safeMath {
      * @param extraData Data to give forward to the receiver
      * @return Whether the transfer was successful or not
      */
-    function transfer(address to, uint256 amount, bytes extraData) isReady external returns (bool success) {
+    function transfer(address to, uint256 amount, bytes extraData) readyModule external returns (bool success) {
         /*
             Launch a transaction where we transfer from a given address to another one.
             After thetransaction the approvedCorionPremiumToken function of the receiver’s address is going to be called with the given data.
@@ -211,7 +209,7 @@ contract premium is module, safeMath {
         Transfer(msg.sender, to, amount, extraData);
         return true;
     }
-    function mint(address owner, uint256 value) external returns (bool success) {
+    function mint(address owner, uint256 value) readyModule external returns (bool success) {
         /*
             Generating tokens. It can be called only by ICO contract.
             
@@ -224,6 +222,7 @@ contract premium is module, safeMath {
         _mint(owner, value);
         return true;
     }
+    /* Internals */
     function transferToContract(address from, address to, uint256 amount, bytes extraData) internal {
         /*
             Inner function in order to transact a contract.
@@ -244,7 +243,7 @@ contract premium is module, safeMath {
         /*
             Inner function to launch a transaction.
             During the ICO transactions are only possible from the genesis address.
-            0xa636a97578d26a3b76b060bbc18226d954cf3757 address is blacklisted.
+            0xa636a97578d26a3b76b060bbc18226d954cf3757 address are blacklisted.
             
             @from      From how?
             @to        For who?
@@ -255,7 +254,7 @@ contract premium is module, safeMath {
         require( db.decrease(from, amount) );
         require( db.increase(to, amount) );
     }
-    function _mint(address owner, uint256 value) isReady internal {
+    function _mint(address owner, uint256 value) internal {
         /*
             Inner function to create a token.
             
@@ -265,7 +264,7 @@ contract premium is module, safeMath {
         require( db.increase(owner, value) );
         Mint(owner, value);
     }
-    function _approve(address spender, uint256 amount, uint256 nonce) isReady internal {
+    function _approve(address spender, uint256 amount, uint256 nonce) internal {
         /*
             Inner function to authorize another address to use an exact amount of the principal’s balance. 
             If the transaction count not match the authorise fails.
@@ -294,6 +293,7 @@ contract premium is module, safeMath {
         }
         return _codeLength > 0;
     }
+    /* Constants */
     function balanceOf(address owner) constant returns (uint256 value) {
         /*
             Token balance query
@@ -325,7 +325,7 @@ contract premium is module, safeMath {
         */
         return db.totalSupply();
     }
-    
+    /* Events */
     event AllowanceUsed(address indexed spender, address indexed owner, uint256 indexed value);
     event Mint(address indexed addr, uint256 indexed value);
     event Burn(address indexed addr, uint256 indexed value);
