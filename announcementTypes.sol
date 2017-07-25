@@ -1,11 +1,13 @@
+/*
+    announcementTypes.sol
+*/
 pragma solidity ^0.4.11;
 
 contract announcementTypes {
-
+    /*
+        Type of announcements
+    */
     enum announcementType {
-        /*
-            type of announcements
-        */
         newModule,
         dropModule,
         replaceModule,
