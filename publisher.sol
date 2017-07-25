@@ -31,6 +31,7 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
                 announcements[announcementID].oppositionWeight = safeAdd(announcements[announcementID].oppositionWeight, value);
             }
         }
+        super.transferEvent(from, to, value);
         return true;
     }
     /* Structures */
