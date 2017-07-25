@@ -6,6 +6,7 @@ pragma solidity ^0.4.11;
 import "./safeMath.sol";
 
 contract moduleMultiOwner {
+    /* Variables */
     address public multiOwnerAddress;
     mapping(bytes32 => address[]) public doDB;
     /* Constructor */
@@ -51,6 +52,7 @@ contract moduleMultiOwner {
 }
 
 contract multiOwner is safeMath {
+    /* Variables */
     uint256 public ownerCount;
     uint256 public constant doConfirmRate = 75;
     mapping(address => bool) public owners;
