@@ -1,3 +1,6 @@
+/*
+    ico.sol
+*/
 pragma solidity ^0.4.11;
 
 import "./safeMath.sol";
@@ -7,6 +10,7 @@ import "./moduleHandler.sol";
 import "./owned.sol";
 
 contract ico is safeMath, owned {
+    /* Structures */
     struct icoLevels_s {
         uint256 block;
         uint8 rate;
@@ -24,9 +28,8 @@ contract ico is safeMath, owned {
         uint256 cor;
         uint256 corp;
     }
-    
-    uint256 constant oneSegment = 40320;
-    
+    /* Variables */
+    uint256 constant oneSegment = 1920;//40320;
     address public tokenAddr;
     address public premiumAddr;
     uint256 public startBlock;
@@ -38,17 +41,17 @@ contract ico is safeMath, owned {
     uint256 constant icoExchangeRateM = 1e4;
     uint256 constant interestOnICO   = 25;
     uint256 constant interestOnICOM  = 1e3;
-    uint256 constant interestBlockDelay = 720;
+    uint256 constant interestBlockDelay = 200;//720;
     uint256 constant exchangeRateDelay = 125;
     bool public aborted;
     bool public closed;
-    icoLevels_s[] public icoLevels;
+    uint256 public totalMint;
+    uint256 public totalPremiumMint;
     mapping (address => affiliate_s) public affiliate;
     mapping (address => brought_s) public brought;
     mapping (address => mapping(uint256 => interest_s)) public interestDB;
-    uint256 public totalMint;
-    uint256 public totalPremiumMint;
-    
+    icoLevels_s[] public icoLevels;
+    /* Constructor */
     function ico(address foundation, address priceSet, uint256 exchangeRate, uint256 startBlockNum, address[] genesisAddr, uint256[] genesisValue) {
         /*
             Installation function.
@@ -56,7 +59,7 @@ contract ico is safeMath, owned {
             @foundation     The ETC address of the foundation
             @priceSet       The address which will be able to make changes on the rate later on.
             @exchangeRate   The current ETC/USD rate multiplied by 1e4. For example: 2.5 USD/ETC = 25000
-            @startBlockNum  The height (level) of the beginning of the ICO. If it is 0 then it will be the current array’s height.
+            @startBlockNum  The block height of the beginning of the ICO. If it is 0 then it will be the current block height.
             @genesisAddr    Array of Genesis addresses
             @genesisValue   Array of balance of genesis addresses
         */
@@ -79,6 +82,7 @@ contract ico is safeMath, owned {
         }
         require( msg.sender.send(this.balance) );
     }
+    /* Fallback */
     function () payable {
         /*
             Callback function. Simply calls the buy function as a beneficiary and there is no affilate address.
@@ -87,6 +91,7 @@ contract ico is safeMath, owned {
         require( isICO() );
         require( buy(msg.sender, 0x00) );
     }
+    /* Externals */
     function setInterestDB(address addr, uint256 balance) external returns(bool success) {
         /*
             Setting interest database. It can be requested by Token contract only.
@@ -267,30 +272,45 @@ contract ico is safeMath, owned {
         brought[beneficiaryAddress].cor = safeAdd(brought[beneficiaryAddress].cor, _reward);
         totalMint = safeAdd(totalMint, _reward);
         require( foundationAddress.send(_value * 10 / 100) );
-        uint256 extra;
+        uint256 _extra;
         if ( affilateAddress != 0x00 && ( brought[affilateAddress].eth > 0 || interestDB[affilateAddress][0].amount > 0 ) ) {
             affiliate[affilateAddress].weight = safeAdd(affiliate[affilateAddress].weight, _reward);
-            extra = affiliate[affilateAddress].weight;
+            _extra = affiliate[affilateAddress].weight;
             uint256 rate;
-            if (extra >= 1e12) {
+            if (_extra >= 1e12) {
                 rate = 5;
-            } else if (extra >= 1e11) {
+            } else if (_extra >= 1e11) {
                 rate = 4;
-            } else if (extra >= 1e10) {
+            } else if (_extra >= 1e10) {
                 rate = 3;
-            } else if (extra >= 1e9) { 
+            } else if (_extra >= 1e9) { 
                 rate = 2;
             } else {
                 rate = 1;
             }
-            extra = safeSub(extra * rate / 100, affiliate[affilateAddress].paid);
+            _extra = safeSub(_extra * rate / 100, affiliate[affilateAddress].paid);
             affiliate[affilateAddress].paid = safeAdd(affiliate[affilateAddress].paid, extra);
-            token(tokenAddr).mint(affilateAddress, extra);
+            token(tokenAddr).mint(affilateAddress, _extra);
         }
         checkPremium(beneficiaryAddress);
-        EICO(beneficiaryAddress, _reward, affilateAddress, extra);
+        EPurchase(beneficiaryAddress, _reward, affilateAddress, _extra);
         return true;
     }
+    /* Internals */
+    function checkPremium(address owner) internal {
+        /*
+            Crediting the premium token
+        
+            @owner The corion token balance of this address will be set based on the calculation which shows that how many times can be the amount of the purchased tokens devided by 5000. So after each 5000 token we give 1 premium token.
+        */
+        uint256 _reward = safeSub((brought[owner].cor / 5e9), brought[owner].corp);
+        if ( _reward > 0 ) {
+            require( premium(premiumAddr).mint(owner, _reward) );
+            brought[owner].corp = safeAdd(brought[owner].corp, _reward);
+            totalPremiumMint = safeAdd(totalPremiumMint, _reward);
+        }
+    }
+    /* Constants */
     function checkInterest(address addr) public constant returns(uint256 amount) {
         /*
             Query of compound interest
@@ -353,19 +373,6 @@ contract ico is safeMath, owned {
     function isICO() public constant returns (bool success) {
         return startBlock <= block.number && block.number <= icoDelay && ( ! aborted ) && ( ! closed );
     }
-    function checkPremium(address owner) internal {
-        /*
-            Crediting the premium token
-        
-            @owner The corion token balance of this address will be set based on the calculation which shows that how many times can be the amount of the purchased tokens devided by 5000. So after each 5000 token we give 1 premium token.
-        */
-        uint256 _reward = safeSub((brought[owner].cor / 5e9), brought[owner].corp);
-        if ( _reward > 0 ) {
-            require( premium(premiumAddr).mint(owner, _reward) );
-            brought[owner].corp = safeAdd(brought[owner].corp, _reward);
-            totalPremiumMint = safeAdd(totalPremiumMint, _reward);
-        }
-    }
-    
-    event EICO(address indexed Address, uint256 indexed value, address Affilate, uint256 AffilateValue);
+    /* Events */
+    event EPurchase(address indexed Address, uint256 indexed value, address Affilate, uint256 AffilateValue);
 }
