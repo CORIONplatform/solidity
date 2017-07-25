@@ -1,3 +1,6 @@
+/*
+    moduleHandler.sol
+*/
 pragma solidity ^0.4.11;
 
 import "./module.sol";
@@ -23,16 +26,19 @@ contract abstractModule is announcementTypes {
 }
 
 contract moduleHandler is multiOwner, announcementTypes {
+    /* Structures */
     struct modules_s {
         address addr;
         bytes32 name;
         bool schellingEvent;
         bool transferEvent;
     }
+    /* Variables */
     modules_s[] public modules;
     uint256 public debugModeUntil = block.number + 1000000;
+    /* Constructor */
     function moduleHandler(address[] newOwners) multiOwner(newOwners) {}
-    
+    /* Externals */
     function load(bool forReplace, address Token, address Premium, address Publisher, address Schelling, address Provider) external {
         /*
             Loading modulest to ModuleHandler.
@@ -321,7 +327,7 @@ contract moduleHandler is multiOwner, announcementTypes {
             require( abstractModule(modules[a].addr).disableModule(forever) );
         }
     }
-    
+    /* Internals */
     function addModule(modules_s input, bool call) internal {
         /*
             Inside function for registration of the modules in the database.
@@ -343,7 +349,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         }
         modules[_id] = input;
     }
-    
+    /* Constants */
     function balanceOf(address owner) public constant returns (bool success, uint256 value) {
         /*
             Query of token balance.
