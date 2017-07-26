@@ -126,7 +126,7 @@ contract schellingDB is safeMath, schellingVars {
     }
 }
 
-contract schelling is module, announcementTypes, schellingVars {
+contract schelling is module, schellingVars {
     /*
         Schelling contract
     */
