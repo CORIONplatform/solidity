@@ -3,9 +3,8 @@ pragma solidity ^0.4.11;
 import "./module.sol";
 import "./moduleHandler.sol";
 import "./safeMath.sol";
-import "./announcementTypes.sol";
 
-contract provider is module, safeMath, announcementTypes {
+contract provider is module, safeMath {
     /*
         module callbacks
     */
