@@ -342,7 +342,7 @@ contract ico is safeMath, owned {
                 _empty = _idb.empty;
             }
             _lastBal = safeAdd(_lastBal, _tamount);
-            _tamount = _lastBal * interestOnICO / interestOnICOM / 100;
+            _tamount = safeMul(_lastBal, interestOnICO) / interestOnICOM / 100;
             amount = safeAdd(amount, _tamount);
         }
     }
