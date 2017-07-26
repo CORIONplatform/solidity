@@ -74,7 +74,7 @@ contract token is safeMath, module {
         if ( ! forReplace ) {
             require( db.replaceOwner(this) );
             assert( genesisAddr.length == genesisValue.length );
-            require( this.balance >= genesisAddr.length * 0.2 ether );
+            require( this.balance >= safeMul(genesisAddr.length, 0.2 ether) );
             for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
                 genesis[genesisAddr[a]] = true;
                 require( db.increase(genesisAddr[a], genesisValue[a]) );
@@ -307,7 +307,7 @@ contract token is safeMath, module {
             Internal function to start transactions to a contract
             
             @from           From who
-            @to             To who.
+            @to             To who
             @amount         Quantity
             @extraData      Extra data the receiver will get
         */
@@ -360,13 +360,13 @@ contract token is safeMath, module {
         if ( isICO ) { return; }
         var (_success, _fee) = getTransactionFee(value);
         require( _success );
-        uint256 _forBurn = _fee * transactionFeeBurn / 100;
+        uint256 _forBurn = safeMul(_fee, transactionFeeBurn) / 100;
         uint256 _forSchelling = safeSub(_fee, _forBurn);
         bool _found;
         address _schellingAddr;
         (_success, _found, _schellingAddr) = moduleHandler(moduleHandlerAddress).getModuleAddressByName('Schelling');
         require( _success );
-        if ( _schellingAddr != 0x00 && _found) {
+        if ( _found && _schellingAddr != 0x00) {
             require( db.decrease(owner, _forSchelling) );
             require( db.increase(_schellingAddr, _forSchelling) );
             _burn(owner, _forBurn);
@@ -456,7 +456,7 @@ contract token is safeMath, module {
             @fee        Amount of Transaction fee
         */
         if ( isICO ) { return (true, 0); }
-        fee = value * transactionFeeRate / transactionFeeRateM / 100;
+        fee = safeMul(value, transactionFeeRate) / transactionFeeRateM / 100;
         if ( fee > transactionFeeMax ) { fee = transactionFeeMax; }
         else if ( fee < transactionFeeMin ) { fee = transactionFeeMin; }
         return (true, fee);
