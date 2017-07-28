@@ -248,7 +248,7 @@ contract ico is safeMath, owned {
             From the remaining amount calculate the reward with the help of the getIcoReward function.
             Only that affiliate address is valid which has some token on it’s account.
             If there is a valid affiliate address then calculate and credit the reward as well in the following way:
-            With more than 1e12 token contract credit 5% reward based on the calculation that how many tokens did they buy when he was added as an affilate.
+            With more than 1e12 token contract credit 5% reward based on the calculation that how many tokens did they buy when he was added as an affiliate.
                 More than 1e11 token: 4%
                 More than 1e10 token: 3%
                 More than 1e9 token: 2% below 1%
