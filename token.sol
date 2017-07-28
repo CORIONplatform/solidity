@@ -54,7 +54,7 @@ contract token is safeMath, module {
     mapping(address => bool) public genesis;
     /* Constructor */
     function token(bool forReplace, address moduleHandler, address dbAddr,
-        address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) payable {
+        address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) payable module(moduleHandlerAddress) {
         /*
             Installation function
             When icoContractAddr is defined, 0.2 ether has to be attached  as many times as many genesis addresses are given
@@ -66,7 +66,6 @@ contract token is safeMath, module {
             @genesisAddr                Array of Genesis addresses
             @genesisValue               Array of balance of genesis addresses
         */
-        super.registerModuleHandler(moduleHandler);
         require( dbAddr != 0x00 );
         require( icoContractAddr != 0x00 );
         db = tokenDB(dbAddr);
@@ -82,6 +81,7 @@ contract token is safeMath, module {
                 Mint(genesisAddr[a], genesisValue[a]);
             }
         }
+        require( msg.sender.send(this.balance) );
     }
     /* Externals */
     function closeIco() external returns (bool success) {

@@ -22,6 +22,10 @@ contract module is announcementTypes {
     status public moduleStatus;
     uint256 public disabledUntil;
     address public moduleHandlerAddress;
+    /* Constructor */
+    function module(address moduleHandler) {
+        registerModuleHandler(moduleHandler);
+    }
     /* Externals */
     function disableModule(bool forever) external onlyForModuleHandler returns (bool success) {
         _disableModule(forever);
