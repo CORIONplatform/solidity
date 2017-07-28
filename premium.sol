@@ -40,14 +40,14 @@ contract premium is module, safeMath {
     bool    public  isICO;
     mapping(address => bool) public genesis;
     /* Constructor */
-    function premium(bool forReplace, address moduleHandler, address dbAddress, address icoContractAddr,
-        address[] genesisAddr, uint256[] genesisValue) module(moduleHandlerAddress) {
+    function premium(bool forReplace, address moduleHandlerAddr, address dbAddress, address icoContractAddr,
+        address[] genesisAddr, uint256[] genesisValue) module(moduleHandlerAddr) {
         /*
             Setup function.
             If an ICOaddress is defined then the balance of the genesis addresses will be set as well.
             
             @forReplace         This address will be replaced with the old one or not.
-            @moduleHandler      Modulhandler’s address
+            @moduleHandlerAddr  Modulhandler’s address
             @dbAddress          Address of database
             @icoContractAddr    Address of ico contract.
             @genesisAddr        Array of the genesis addresses.

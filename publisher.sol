@@ -58,11 +58,11 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
     mapping(uint256 => announcements_s) public announcements;
     mapping (address => uint256[]) public opponents;
     /* Constructor */
-    function publisher(address moduleHandlerAddress) moduleMultiOwner(moduleHandlerAddress) module(moduleHandlerAddress) {
+    function publisher(address moduleHandlerAddr) moduleMultiOwner(moduleHandlerAddress) module(moduleHandlerAddr) {
         /*
             Installation function. The installer will be registered in the admin list automatically.
             
-            @moduleHandlerAddress   Address of moduleHandler
+            @moduleHandlerAddr      Address of moduleHandler
         */
     }
     /* Externals */
