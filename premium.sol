@@ -40,7 +40,8 @@ contract premium is module, safeMath {
     bool    public  isICO;
     mapping(address => bool) public genesis;
     /* Constructor */
-    function premium(bool forReplace, address moduleHandler, address dbAddress, address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) {
+    function premium(bool forReplace, address moduleHandler, address dbAddress, address icoContractAddr,
+        address[] genesisAddr, uint256[] genesisValue) module(moduleHandlerAddress) {
         /*
             Setup function.
             If an ICOaddress is defined then the balance of the genesis addresses will be set as well.
@@ -52,7 +53,6 @@ contract premium is module, safeMath {
             @genesisAddr        Array of the genesis addresses.
             @genesisValue       Array of the balance of the genesis addresses
         */
-        super.registerModuleHandler(moduleHandler);
         require( dbAddress != 0x00 );
         icoAddr = icoContractAddr;
         db = ptokenDB(dbAddress);
