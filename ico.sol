@@ -74,9 +74,10 @@ contract ico is safeMath, owned {
         } else {
             startBlock = block.number;
         }
-        icoLevels.push(icoLevels_s(safeMul(safeAdd(startBlock, oneSegment), 1), 0));
-        icoLevels.push(icoLevels_s( startBlock, 3));
-        icoDelay = safeMul(safeAdd(startBlock, oneSegment), 2);
+        
+        icoLevels.push(icoLevels_s(safeAdd(startBlock, safeMul(oneSegment, 1)), 0));
+        icoLevels.push(icoLevels_s(startBlock, 3));
+        icoDelay = safeAdd(startBlock, safeMul(oneSegment, 2));
         for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
             interestDB[genesisAddr[a]][0].amount = genesisValue[a];
         }
