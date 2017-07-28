@@ -53,14 +53,14 @@ contract token is safeMath, module {
     bool    public isICO;
     mapping(address => bool) public genesis;
     /* Constructor */
-    function token(bool forReplace, address moduleHandler, address dbAddr,
-        address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) payable module(moduleHandlerAddress) {
+    function token(bool forReplace, address moduleHandlerAddr, address dbAddr,
+        address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) payable module(moduleHandlerAddr) {
         /*
             Installation function
             When icoContractAddr is defined, 0.2 ether has to be attached  as many times as many genesis addresses are given
             
             @forReplace                 This address will be replaced with the old one or not.
-            @moduleHandler              Modulhandler's address
+            @moduleHandlerAddr          Modulhandler's address
             @dbAddr                     Address of database
             @icoContractAddr            Address of ICO contract
             @genesisAddr                Array of Genesis addresses
