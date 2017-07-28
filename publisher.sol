@@ -64,7 +64,6 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
             
             @moduleHandler      Address of moduleHandler
         */
-        super.registerModuleHandler(moduleHandler);
     }
     /* Externals */
     function newAnnouncement(announcementType Type, string Announcement, string Link, bool Oppositable,
