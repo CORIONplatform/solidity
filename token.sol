@@ -429,7 +429,7 @@ contract token is safeMath, module {
         return _codeLength > 0;
     }
     function checkContract(address addr) internal returns (bool appropriate) {
-        return TPCCORP(addr).CORPAddress() == address(this);
+        return TPCCOR(addr).CORAddress() == address(this);
     }
     /* Constants */
     function allowance(address owner, address spender) constant returns (uint256 remaining, uint256 nonce) {
