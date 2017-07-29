@@ -7,11 +7,7 @@ import "./safeMath.sol";
 import "./tokenDB.sol";
 import "./module.sol";
 import "./ico.sol";
-
-contract thirdPartyPContractAbstract {
-    function receiveCorionPremiumToken(address, uint256, bytes) external returns (bool, uint256) {}
-    function approvedCorionPremiumToken(address, uint256, bytes) external returns (bool) {}
-}
+import "./thirdPartyContract.sol";
 
 contract ptokenDB is tokenDB {}
 
@@ -118,7 +114,8 @@ contract premium is module, safeMath {
             @sucess         Was the Function successful?
         */
         _approve(spender, amount, nonce);
-        require( thirdPartyPContractAbstract(spender).approvedCorionPremiumToken(msg.sender, amount, extraData) );
+        require( checkContract(spender) );
+        require( TPCCORP(spender).approvedCORP(msg.sender, amount, extraData) );
         return true;
     }
     /**
@@ -232,7 +229,8 @@ contract premium is module, safeMath {
             @extraData      Extra data that will be given to the receiver
         */
         _transfer(from, to, amount);
-        var (_success, _back) = thirdPartyPContractAbstract(to).receiveCorionPremiumToken(from, amount, extraData);
+        require( checkContract(to) );
+        var (_success, _back) = TPCCORP(to).receiveCORP(from, amount, extraData);
         require( _success );
         require( amount > _back );
         if ( _back > 0 ) {
@@ -292,6 +290,9 @@ contract premium is module, safeMath {
             _codeLength := extcodesize(addr)
         }
         return _codeLength > 0;
+    }
+    function checkContract(address addr) internal returns (bool appropriate) {
+        return TPCCORP(addr).CORPAddress() == address(this);
     }
     /* Constants */
     function balanceOf(address owner) constant returns (uint256 value) {
