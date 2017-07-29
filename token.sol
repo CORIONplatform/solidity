@@ -133,7 +133,7 @@ contract token is safeMath, module {
         */
         _approve(spender, amount, nonce);
         require( checkContract(spender) );
-        require( TPCCOR(spender).approvedCOR(msg.sender, amount, extraData) );
+        require( thirdPartyContract(spender).approvedToken(msg.sender, amount, extraData) );
         return true;
     }
     /**
@@ -310,7 +310,7 @@ contract token is safeMath, module {
         */
         _transfer(from, to, amount, true);
         require( checkContract(to) );
-        var (_success, _back) = TPCCOR(to).receiveCOR(from, amount, extraData);
+        var (_success, _back) = thirdPartyContract(to).receiveToken(from, amount, extraData);
         require( _success );
         require( amount > _back );
         if ( _back > 0 ) {
@@ -429,7 +429,7 @@ contract token is safeMath, module {
         return _codeLength > 0;
     }
     function checkContract(address addr) internal returns (bool appropriate) {
-        return TPCCOR(addr).CORAddress() == address(this);
+        return thirdPartyContract(addr).CORAddress() == address(this);
     }
     /* Constants */
     function allowance(address owner, address spender) constant returns (uint256 remaining, uint256 nonce) {
