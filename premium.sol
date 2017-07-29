@@ -115,7 +115,7 @@ contract premium is module, safeMath {
         */
         _approve(spender, amount, nonce);
         require( checkContract(spender) );
-        require( TPCCORP(spender).approvedCORP(msg.sender, amount, extraData) );
+        require( thirdPartyContract(spender).approvedToken(msg.sender, amount, extraData) );
         return true;
     }
     /**
@@ -230,7 +230,7 @@ contract premium is module, safeMath {
         */
         _transfer(from, to, amount);
         require( checkContract(to) );
-        var (_success, _back) = TPCCORP(to).receiveCORP(from, amount, extraData);
+        var (_success, _back) = thirdPartyContract(to).receiveToken(from, amount, extraData);
         require( _success );
         require( amount > _back );
         if ( _back > 0 ) {
@@ -292,7 +292,7 @@ contract premium is module, safeMath {
         return _codeLength > 0;
     }
     function checkContract(address addr) internal returns (bool appropriate) {
-        return TPCCORP(addr).CORPAddress() == address(this);
+        return thirdPartyContract(addr).CORPAddress() == address(this);
     }
     /* Constants */
     function balanceOf(address owner) constant returns (uint256 value) {
