@@ -8,11 +8,7 @@ import "./module.sol";
 import "./moduleHandler.sol";
 import "./tokenDB.sol";
 import "./ico.sol";
-
-contract thirdPartyContractAbstract {
-    function receiveCorionToken(address, uint256, bytes) external returns (bool, uint256) {}
-    function approvedCorionToken(address, uint256, bytes) external returns (bool) {}
-}
+import "./thirdPartyContract.sol";
 
 contract token is safeMath, module {
     /* module callbacks */
@@ -136,7 +132,8 @@ contract token is safeMath, module {
             @success            Was the Function successful?
         */
         _approve(spender, amount, nonce);
-        require( thirdPartyContractAbstract(spender).approvedCorionToken(msg.sender, amount, extraData) );
+        require( checkContract(spender) );
+        require( TPCCOR(spender).approvedCOR(msg.sender, amount, extraData) );
         return true;
     }
     /**
@@ -312,8 +309,8 @@ contract token is safeMath, module {
             @extraData      Extra data the receiver will get
         */
         _transfer(from, to, amount, true);
-        
-        var (_success, _back) = thirdPartyContractAbstract(to).receiveCorionToken(from, amount, extraData);
+        require( checkContract(to) );
+        var (_success, _back) = TPCCOR(to).receiveCOR(from, amount, extraData);
         require( _success );
         require( amount > _back );
         if ( _back > 0 ) {
@@ -430,6 +427,9 @@ contract token is safeMath, module {
             _codeLength := extcodesize(addr)
         }
         return _codeLength > 0;
+    }
+    function checkContract(address addr) internal returns (bool appropriate) {
+        return TPCCORP(addr).CORPAddress() == address(this);
     }
     /* Constants */
     function allowance(address owner, address spender) constant returns (uint256 remaining, uint256 nonce) {
