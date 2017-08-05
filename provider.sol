@@ -1,17 +1,544 @@
 pragma solidity ^0.4.11;
 
 import "./module.sol";
-import "./moduleHandler.sol";
+//import "./moduleHandler.sol";
 import "./safeMath.sol";
+import "./announcementTypes.sol";
+import "./owned.sol";
 
-contract provider is module, safeMath {
-    /*
-        module callbacks
-    */
-    function connectModule() external onlyForModuleHandler returns (bool success) {
-        super._connectModule();
-        var (_success, currentSchellingRound) = moduleHandler(moduleHandlerAddress).getCurrentSchellingRoundID();
-        require( _success );
+contract providerCommonVars {
+    enum senderStatus_e {
+        none,
+        client,
+        adminAndClient,
+        admin,
+        owner
+    }
+}
+
+contract providerDB is providerCommonVars, owned {
+    struct supply_s {
+        uint256 amount;
+        bool valid;
+    }
+    struct rate_s {
+        uint8 value;
+        bool valid;
+    }
+    struct provider_s {
+        mapping(uint256 => rate_s) rateHistory;
+        mapping(address => bool) allowedUsers;
+        mapping(uint256 => supply_s) supply;
+        address owner;
+        address admin;
+        string name;
+        string website;
+        string country;
+        string info;
+        bool isForRent;
+        uint8 currentRate;
+        bool priv;
+        uint256 clientsCount;
+        uint256 lastSupplyID;
+        uint256 closed; // schelling round
+    }
+    struct schellingRoundDetails_s {
+        uint256 reward;
+        uint256 supply;
+    }
+    struct client_s {
+        mapping(uint256 => supply_s) supply;
+        uint256 providerUID;
+        uint256 lastSupplyID;
+        uint8 lastPaidRate;
+        uint256 paidUpTo;
+    }
+    mapping(uint256 => provider_s) providers;
+    mapping(uint256 => schellingRoundDetails_s) public schellingRoundDetails;
+    mapping(address => client_s) public clients;
+    uint256 public providerCounter;
+    uint256 public currentSchellingRound = 1;
+    //base providerCounter functions
+    function getProviderCounter() constant returns(bool success, uint256 value) {
+        return (
+            true,
+            providerCounter
+        );
+    }
+    function setProviderCounter(uint256 value) external returns(bool success) {
+        require( isOwner() );
+        providerCounter = value;
+        return true;
+    }
+    //combined client functions
+    function isClientPaidUp(address clientAddress) constant returns(bool success, bool paid) {
+        // ha teljesen ki van fizetve az user
+        var providerUID = clients[clientAddress].providerUID;
+        return (
+            true,
+            // ha be van zarva a provider, de ki is van fizetve
+            ( ( providers[providerUID].closed > 0 && clients[clientAddress].paidUpTo == providers[providerUID].closed-1 ) ||
+            // ha meg nincs bezarva a provider, de eddig ki van fizetve
+            clients[clientAddress].paidUpTo == currentSchellingRound )
+        );
+    }
+    function joinToProvider(uint256 providerUID, address clientAddress) external returns(bool success) {
+        require( isOwner() );
+        if ( providers[providerUID].owner != clientAddress ) {
+            providers[providerUID].clientsCount++;
+        }
+        clients[clientAddress].providerUID = providerUID;
+        clients[clientAddress].lastSupplyID = currentSchellingRound;
+        clients[clientAddress].paidUpTo = currentSchellingRound;
+        clients[clientAddress].lastPaidRate = providers[providerUID].currentRate;
+        return true;
+    }
+    function partFromProvider(uint256 providerUID, address clientAddress) external returns(bool success) {
+        require( isOwner() );
+        if ( providers[providerUID].owner != clientAddress ) {
+            providers[providerUID].clientsCount--;
+        }
+        delete clients[clientAddress].providerUID;
+        delete clients[clientAddress].supply[clients[clientAddress].lastSupplyID];
+        delete clients[clientAddress].lastSupplyID;
+        delete clients[clientAddress].lastPaidRate;
+        return true;
+    }
+    function getSenderStatus(address sender, uint256 providerUID) external returns(bool success, senderStatus_e status) {
+        if ( providers[providerUID].owner == sender ) {
+            return (true, senderStatus_e.owner);
+        } else if ( providers[providerUID].admin == sender ) {
+            if ( clients[sender].providerUID == providerUID ) {
+                return (true, senderStatus_e.adminAndClient);
+            } else {
+                return (true, senderStatus_e.admin);
+            }
+        } else if ( clients[sender].providerUID == providerUID ) {
+            return (true, senderStatus_e.client);
+        }
+        return (true, senderStatus_e.none);
+    }
+    function getClientSupply(address clientAddress, uint256 schellingRound, uint256 previousSupply) constant returns(bool success, uint256 amount) {
+        if ( clients[clientAddress].supply[schellingRound].valid ) {
+            return ( true, clients[clientAddress].supply[schellingRound].amount );
+        } else {
+            if ( clients[clientAddress].lastSupplyID < schellingRound ) {
+                return ( true, clients[clientAddress].supply[clients[clientAddress].lastSupplyID].amount );
+            } else {
+                return ( true, previousSupply );
+            }
+        }
+    }
+    //base client functions
+    function getClientSupply(address clientAddress) constant returns(bool success, uint256 amount) {
+        return (
+            true,
+            clients[clientAddress].supply[clients[clientAddress].lastSupplyID].amount
+        );
+    }
+    function getClientSupply(address clientAddress, uint256 schellingRound) constant returns(bool success, uint256 amount, bool valid) {
+        return (
+            true,
+            clients[clientAddress].supply[schellingRound].amount,
+            clients[clientAddress].supply[schellingRound].valid
+        );
+    }
+    function setClientSupply(address clientAddress, uint256 schellingRound, uint256 amount) external returns(bool success) {
+        require( isOwner() );
+        clients[clientAddress].supply[schellingRound].amount = amount;
+        clients[clientAddress].supply[schellingRound].valid = true;
+        if ( clients[clientAddress].lastSupplyID < schellingRound ) {
+            clients[clientAddress].lastSupplyID = schellingRound;
+        }
+        return true;
+    }
+    function setClientSupply(address clientAddress, uint256 amount) external returns(bool success) {
+        require( isOwner() );
+        clients[clientAddress].supply[currentSchellingRound].amount = amount;
+        clients[clientAddress].supply[currentSchellingRound].valid = true;
+        clients[clientAddress].lastSupplyID = currentSchellingRound;
+        return true;
+    }
+    function getClientPaidUpTo(address clientAddress) constant returns(bool success, uint256 paidUpTo) {
+        return (
+            true,
+            clients[clientAddress].paidUpTo
+        );
+    }
+    function setClientPaidUpTo(address clientAddress, uint256 paidUpTo) external returns(bool success) {
+        require( isOwner() );
+        clients[clientAddress].paidUpTo = paidUpTo;
+        return true;
+    }
+    function getClientLastPaidRate(address clientAddress) constant returns(bool success, uint8 lastPaidRate) {
+        return (
+            true,
+            clients[clientAddress].lastPaidRate
+        );
+    }
+    function setClientLastPaidRate(address clientAddress, uint8 lastPaidRate) external returns(bool success) {
+        require( isOwner() );
+        clients[clientAddress].lastPaidRate = lastPaidRate;
+        return true;
+    }
+    function getClientLastSupplyID(address clientAddress) constant returns(bool success, uint256 lastSupplyID) {
+        return (
+            true,
+            clients[clientAddress].lastSupplyID
+        );
+    }
+    function setClientLastSupplyID(address clientAddress, uint256 lastSupplyID) external returns(bool success) {
+        require( isOwner() );
+        clients[clientAddress].lastSupplyID = lastSupplyID;
+        return true;
+    }
+    function getClientProviderUID(address clientAddress) constant returns(bool success, uint256 providerUID) {
+        return (
+            true,
+            clients[clientAddress].providerUID
+        );
+    }
+    function setClientProviderUID(address clientAddress, uint256 providerUID) external returns(bool success) {
+        require( isOwner() );
+        clients[clientAddress].providerUID = providerUID;
+        return true;
+    }
+    //combined schelling functions
+    function newSchellingRound(uint256 roundID, uint256 reward) external returns(bool success) {
+        require( isOwner() );
+        schellingRoundDetails[roundID-1].reward = reward;
+        schellingRoundDetails[roundID].supply = schellingRoundDetails[roundID-1].supply;
+        currentSchellingRound = roundID;
+        return true;
+    }
+    //base schelling functions
+    function getCurrentSchellingRound() constant returns(bool success, uint256 roundID) {
+        return (
+            true,
+            currentSchellingRound
+        );
+    }
+    function setCurrentSchellingRound(uint256 roundID) external returns(bool success) {
+        require( isOwner() );
+        currentSchellingRound = roundID;
+        return true;
+    }
+    function getSchellingRoundDetails() constant returns(bool success, uint256 supply) {
+        return (
+            true,
+            schellingRoundDetails[currentSchellingRound].supply
+        );
+    }
+    function getSchellingRoundDetails(uint256 roundID) constant returns(bool success, uint256 reward, uint256 supply) {
+        return (
+            true,
+            schellingRoundDetails[roundID].reward,
+            schellingRoundDetails[roundID].supply
+        );
+    }
+    function setSchellingRoundDetails(uint256 roundID, uint256 reward, uint256 supply) external returns(bool success) {
+        require( isOwner() );
+        schellingRoundDetails[roundID].reward = reward;
+        schellingRoundDetails[roundID].supply = supply;
+        return true;
+    }
+    function setSchellingRoundSupply(uint256 supply) external returns(bool success) {
+        require( isOwner() );
+        schellingRoundDetails[currentSchellingRound].supply = supply;
+        return true;
+    }
+    //combined provider functions
+    function openProvider(address owner, bool priv, string name, string website, string country, string info,
+        uint8 rate, bool isForRent, address admin) external returns(bool success, uint256 providerUID) {
+        require( isOwner() );
+        providerCounter++;
+        providers[providerCounter].owner = owner;
+        providers[providerCounter].admin = admin;
+        providers[providerCounter].priv = priv;
+        providers[providerCounter].name = name;
+        providers[providerCounter].website = website;
+        providers[providerCounter].country = country;
+        providers[providerCounter].info = info;
+        providers[providerCounter].currentRate = rate;
+        providers[providerCounter].rateHistory[currentSchellingRound].value = rate;
+        providers[providerCounter].isForRent = isForRent;
+        providers[providerCounter].lastSupplyID = currentSchellingRound;
+        return ( true, providerCounter );
+    }
+    function closeProvider(address owner, uint256 providerUID) external returns(bool success) {
+        require( isOwner() );
+        clients[owner].providerUID = 0;
+        delete clients[owner].supply[clients[owner].lastSupplyID];
+        delete clients[owner].lastSupplyID;
+        delete clients[owner].lastPaidRate;
+        providers[providerCounter].closed = currentSchellingRound;
+        return true;
+    }
+    function checkForJoin(uint256 providerUID, address clientAddress, uint256 countLimitforPrivate) constant returns(bool success, bool allowed) {
+        return (
+            true,
+            providers[providerUID].closed == 0x00 && 
+            providers[providerUID].owner != 0x00 && 
+            clients[clientAddress].providerUID == 0x00 && 
+            (
+                ( providers[providerUID].priv && providers[providerUID].allowedUsers[clientAddress] && (providers[providerUID].clientsCount+1) <= countLimitforPrivate) || 
+                ( ! providers[providerUID].priv )
+            )
+        );
+    }
+    function isProviderValid(uint256 providerUID) constant returns(bool success, bool valid) {
+        return (
+            true,
+            providers[providerUID].closed == 0x00 && providers[providerUID].owner != 0x00
+        );
+    }
+    function getProviderInfoFields(uint256 providerUID) constant returns(bool success, address owner, 
+        string name, string website, string country, string info, address admin, uint8 rate) {
+        success = true;
+        owner = providers[providerUID].owner;
+        name = providers[providerUID].name;
+        website = providers[providerUID].website;
+        country = providers[providerUID].country;
+        info = providers[providerUID].info;
+        admin = providers[providerUID].admin;
+        rate = providers[providerUID].currentRate;
+    }
+    function setProviderInfoFields(uint256 providerUID, string name, string website,
+        string country, string info, address admin, uint8 rate) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].name = name;
+        providers[providerUID].website = website;
+        providers[providerUID].country = country;
+        providers[providerUID].info = info;
+        providers[providerUID].admin = admin;
+        providers[providerUID].currentRate = rate;
+        providers[providerUID].rateHistory[currentSchellingRound] = rate_s( rate, true );
+        return true;
+    }
+    function getProviderDetailFields(uint256 providerUID) constant returns(bool success, bool priv, bool isForRent, uint256 closed) {
+        success = true;
+        priv = providers[providerUID].priv;
+        isForRent = providers[providerUID].isForRent;
+        closed = providers[providerUID].closed;
+    }
+    function setProviderDetailFields(uint256 providerUID, bool priv, bool isForRent, uint256 closed) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].priv = priv;
+        providers[providerUID].isForRent = isForRent;
+        providers[providerUID].closed = closed;
+        return true;
+    } 
+    function getProviderSupply(uint256 providerUID, uint256 schellingRound, uint256 previousSupply) constant returns(bool success, uint256 amount) {
+        if ( providers[providerUID].supply[schellingRound].valid ) {
+            return ( true, providers[providerUID].supply[schellingRound].amount );
+        } else {
+            if ( providers[providerUID].lastSupplyID < schellingRound ) {
+                return ( true, providers[providerUID].supply[providers[providerUID].lastSupplyID].amount );
+            } else {
+                return ( true, previousSupply );
+            }
+        }
+    }
+    function getProviderRateHistory(uint256 providerUID, uint256 schellingRound, uint8 previousRate) constant returns(bool success, uint8 rate) {
+        if ( providers[providerUID].rateHistory[schellingRound].valid ) {
+            return ( true, providers[providerUID].rateHistory[schellingRound].value );
+        } else {
+            return ( true, previousRate );
+        }
+    }
+    //base provider functions
+    function getProviderOwner(uint256 providerUID) constant returns(bool success, address owner) {
+        return (
+            true, 
+            providers[providerUID].owner
+        );
+    }
+    function setProviderOwner(uint256 providerUID, address owner) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].owner = owner;
+        return true;
+    }
+    function getProviderAdmin(uint256 providerUID) constant returns(bool success, address admin) {
+        return (
+            true, 
+            providers[providerUID].admin
+        );
+    }
+    function setProviderAdmin(uint256 providerUID, address admin) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].admin = admin;
+        return true;
+    }
+    function getProviderName(uint256 providerUID) constant returns(bool success, string name) {
+        return (
+            true, 
+            providers[providerUID].name
+        );
+    }
+    function setProviderName(uint256 providerUID, string name) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].name = name;
+        return true;
+    }
+    function getProviderWebsite(uint256 providerUID) constant returns(bool success, string website) {
+        return (
+            true, 
+            providers[providerUID].website
+        );
+    }
+    function setProviderWebsite(uint256 providerUID, string website) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].website = website;
+        return true;
+    }
+    function getProviderCountry(uint256 providerUID) constant returns(bool success, string country) {
+        return (
+            true, 
+            providers[providerUID].country
+        );
+    }
+    function setProviderCountry(uint256 providerUID, string country) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].country = country;
+        return true;
+    }
+    function getProviderInfo(uint256 providerUID) constant returns(bool success, string info) {
+        return (
+            true, 
+            providers[providerUID].info
+        );
+    }
+    function setProviderInfo(uint256 providerUID, string info) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].info = info;
+        return true;
+    }
+    function getProviderIsForRent(uint256 providerUID) constant returns(bool success, bool isForRent) {
+        return (
+            true, 
+            providers[providerUID].isForRent
+        );
+    }
+    function setProviderIsForRent(uint256 providerUID, bool isForRent) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].isForRent = isForRent;
+        return true;
+    }
+    function getProviderRateHistory(uint256 providerUID, uint256 schellingRound) constant returns(bool success, uint8 value, bool valid) {
+        return (
+            true, 
+            providers[providerUID].rateHistory[schellingRound].value,
+            providers[providerUID].rateHistory[schellingRound].valid
+        );
+    }
+    function setProviderRateHistory(uint256 providerUID, uint256 schellingRound, uint8 value, bool valid) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].rateHistory[schellingRound].value = value;
+        providers[providerUID].rateHistory[schellingRound].valid = valid;
+        return true;
+    }
+    function getProviderCurrentRate(uint256 providerUID) constant returns(bool success, uint8 rate) {
+        return (
+            true, 
+            providers[providerUID].currentRate
+        );
+    }
+    function setProviderCurrentRate(uint256 providerUID, uint8 rate) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].currentRate = rate;
+        return true;
+    }
+    function getProviderPriv(uint256 providerUID) constant returns(bool success, bool priv) {
+        return (
+            true, 
+            providers[providerUID].priv
+        );
+    }
+    function setProviderPriv(uint256 providerUID, bool priv) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].priv = priv;
+        return true;
+    }
+    function getProviderClientsCount(uint256 providerUID) constant returns(bool success, uint256 clientsCount) {
+        return (
+            true, 
+            providers[providerUID].clientsCount
+        );
+    }
+    function setProviderClientsCount(uint256 providerUID, uint256 clientsCount) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].clientsCount = clientsCount;
+        return true;
+    }
+    function getProviderAllowUser(uint256 providerUID, address clientAddress) constant returns(bool success, bool status) {
+        return (
+            true,
+            providers[providerUID].allowedUsers[clientAddress]
+        );
+    }
+    function setProviderAllowUser(uint256 providerUID, address clientAddress, bool status) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].allowedUsers[clientAddress] = status;
+        return true;
+    }
+    function getProviderSupply(uint256 providerUID, uint256 schellingRound) constant returns(bool success, uint256 value, bool valid) {
+        return (
+            true, 
+            providers[providerUID].supply[schellingRound].amount,
+            providers[providerUID].supply[schellingRound].valid
+        );
+    }
+    function getProviderSupply(uint256 providerUID) constant returns(bool success, uint256 value) {
+        return (
+            true, 
+            providers[providerUID].supply[providers[providerUID].lastSupplyID].amount
+        );
+    }
+    function setProviderSupply(uint256 providerUID, uint256 schellingRound, uint256 value) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].supply[schellingRound].amount = value;
+        providers[providerUID].supply[schellingRound].valid = true;
+        if ( providers[providerUID].lastSupplyID < schellingRound ) {
+            providers[providerUID].lastSupplyID = schellingRound;
+        }
+        return true;
+    }
+    function setProviderSupply(uint256 providerUID, uint256 value) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].supply[currentSchellingRound].amount = value;
+        providers[providerUID].supply[currentSchellingRound].valid = true;
+        providers[providerUID].lastSupplyID = currentSchellingRound;
+        return true;
+    }
+    function getProviderLastSupplyID(uint256 providerUID) constant returns(bool success, uint256 lastSupplyID) {
+        return (
+            true, 
+            providers[providerUID].lastSupplyID
+        );
+    }
+    function setProviderLastSupplyID(uint256 providerUID, uint256 lastSupplyID) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].lastSupplyID = lastSupplyID;
+        return true;
+    }
+    function getProviderClosed(uint256 providerUID) constant returns(bool success, uint256 closed) {
+        return (
+            true, 
+            providers[providerUID].closed
+        );
+    }
+    function setProviderClosed(uint256 providerUID, uint256 closed) external returns(bool success) {
+        require( isOwner() );
+        providers[providerUID].closed = closed;
+        return true;
+    }
+}
+
+contract provider is module, safeMath, providerCommonVars {
+    /* module callbacks */
+    function replaceModule(address addr) onlyForModuleHandler external returns (bool success) {
+        require( db.replaceOwner(addr) );
+        super._replaceModule(addr);
         return true;
     }
     function transferEvent(address from, address to, uint256 value) external onlyForModuleHandler returns (bool success) {
@@ -24,11 +551,16 @@ contract provider is module, safeMath {
             @value      amount
             @bool       Was the function successful?
         */
-        transferEvent_(from, value, true);
-        transferEvent_(to, value, false);
+        var _providerUID = _getClientProviderUID(from);
+        appendSupplyChanges(_providerUID, from, true, value);
+        _providerUID = _getClientProviderUID(to);
+        appendSupplyChanges(_providerUID, to, false, value);
         return true;
     }
-    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external onlyForModuleHandler returns (bool success) {
+    //
+    // DEBUG
+    // -> onlyForModuleHandler
+    function newSchellingRoundEvent(uint256 roundID, uint256 reward) external returns (bool success) {
         /*
             New schelling round. This function is only available for the moduleHandler.
             We are recording the new schelling round and we are storing the whole current quantity of the tokens.
@@ -38,178 +570,291 @@ contract provider is module, safeMath {
             @reward         token emission 
             @bool           Was the function successful?
         */
-        globalFunds[roundID].reward = reward;
-        globalFunds[roundID].supply = globalFunds[roundID-1].supply;
-        currentSchellingRound = roundID;
-        require( moduleHandler(moduleHandlerAddress).mint(address(this), reward) );
+        require( db.newSchellingRound(roundID, reward) );
+        balanceOf[address(this)] = safeAdd(balanceOf[address(this)], reward);
+        //require( moduleHandler(moduleHandlerAddress).mint(address(this), reward) );
         return true;
     }
-    modifier isReady {
+    function configureModule(announcementType aType, uint256 value, address addr) onlyForModuleHandler external returns(bool success) {
+        if      ( aType == announcementType.providerPublicFunds )          { minFundsForPublic = value; }
+        else if ( aType == announcementType.providerPrivateFunds )         { minFundsForPrivate = value; }
+        else if ( aType == announcementType.providerPrivateClientLimit )   { privateProviderLimit = value; }
+        else if ( aType == announcementType.providerPublicMinRate )        { publicMinRate = uint8(value); }
+        else if ( aType == announcementType.providerPublicMaxRate )        { publicMaxRate = uint8(value); }
+        else if ( aType == announcementType.providerPrivateMinRate )       { privateMinRate = uint8(value); }
+        else if ( aType == announcementType.providerPrivateMaxRate )       { privateMaxRate = uint8(value); }
+        else if ( aType == announcementType.providerGasProtect )           { gasProtectMaxRounds = value; }
+        else if ( aType == announcementType.providerInterestMinFunds )     { interestMinFunds = value; }
+        else if ( aType == announcementType.providerRentRate )             { rentRate = value; }
+        else { return false; }
+        super._configureModule(aType, value, addr);
+        return true;
+    }
+    modifier readyModule {
+        
+        //hardcoded
+        _;
+        return;
+        
+        /*
         var (_success, _active) = super.isActive();
         require( _success && _active ); 
         _;
+        */
     }
-    /*
-        Provider module
-    */
-    uint256 private minFundsForPublic   = 3000;
-    uint256 private minFundsForPrivate  = 8000;
-    uint256 private privateProviderLimit  = 250;
-    uint8 private publicMinRate     = 30;
-    uint8 private privateMinRate    = 0;
-    uint8 private publicMaxRate     = 70;
-    uint8 private privateMaxRate    = 100;
-    uint256 private gasProtectMaxRounds = 630;
-    uint256 private interestMinFunds = 25000;
-    uint256 private rentRate = 20;
-
-    struct _rate {
-        uint8 value;
-        bool valid;
+    
+    /* Provider database calls */
+    // client
+    function _isClientPaidUp(address clientAddress) constant returns(bool paid) {
+        var (_success, _paid) = db.isClientPaidUp(clientAddress);
+        require( _success );
+        return _paid;
     }
-    struct __providers {
+    function _getClientSupply(address clientAddress) internal returns(uint256 amount) {
+        var ( _success, _amount ) = db.getClientSupply(clientAddress);
+        require( _success );
+        return _amount;
+    }
+    function _getClientSupply(address clientAddress, uint256 schellingRound) internal returns(uint256 amount, bool valid) {
+        var ( _success, _amount, _valid ) = db.getClientSupply(clientAddress, schellingRound);
+        require( _success );
+        return ( _amount, _valid );
+    }
+    function _getClientSupply(address clientAddress, uint256 schellingRound, uint256 oldAmount) internal returns(uint256 amount) {
+        var ( _success, _amount, _valid ) = db.getClientSupply(clientAddress, schellingRound);
+        require( _success );
+        if ( _valid ) {
+            return _amount;
+        }
+        return oldAmount;
+    }
+    function _getClientProviderUID(address clientAddress) internal returns(uint256 providerUID) {
+        var ( _success, _providerUID ) = db.getClientProviderUID(clientAddress);
+        require( _success );
+        return _providerUID;
+    }
+    function _getClientLastPaidRate(address clientAddress) internal returns(uint8 rate) {
+        var ( _success, _rate ) = db.getClientLastPaidRate(clientAddress);
+        require( _success );
+        return _rate;
+    }
+    function _joinToProvider(uint256 providerUID, address clientAddress) internal {
+        var _success = db.joinToProvider(providerUID, clientAddress);
+        require( _success );
+    }
+    function _partFromProvider(uint256 providerUID, address clientAddress) internal {
+        var _success = db.partFromProvider(providerUID, clientAddress);
+        require( _success );
+    }
+    function _checkForJoin(uint256 providerUID, address clientAddress, uint256 countLimitforPrivate) internal returns(bool allowed) {
+        var ( _success, _allowed ) = db.checkForJoin(providerUID, clientAddress, countLimitforPrivate);
+        require( _success );
+        return _allowed;
+    }
+    function _getSenderStatus(uint256 providerUID) internal returns(senderStatus_e status) {
+        var ( _success, _status ) = db.getSenderStatus(msg.sender, providerUID);
+        require( _success );
+        return _status;
+    }
+    function _getClientPaidUpTo(address clientAddress) internal returns(uint256 paidUpTo) {
+        var ( _success, _paidUpTo ) = db.getClientPaidUpTo(clientAddress);
+        require( _success );
+        return _paidUpTo;
+    }
+    function _setClientPaidUpTo(address clientAddress, uint256 paidUpTo) internal {
+        var ( _success ) = db.setClientPaidUpTo(clientAddress, paidUpTo);
+        require( _success );
+    }
+    function _setClientLastPaidRate(address clientAddress, uint8 lastPaidRate) internal {
+        var ( _success ) = db.setClientLastPaidRate(clientAddress, lastPaidRate);
+        require( _success );
+    }
+    function _setClientSupply(address clientAddress, uint256 roundID, uint256 amount) internal {
+        var ( _success ) = db.setClientSupply(clientAddress, roundID, amount);
+        require( _success );
+    }
+    function _setClientSupply(address clientAddress, uint256 amount) internal {
+        var ( _success ) = db.setClientSupply(clientAddress, amount);
+        require( _success );
+    }
+    //provider
+    function _openProvider(bool priv, string name, string website, string country, string info, uint8 rate, bool isForRent, address admin) internal returns(uint256 newUID) {
+        if ( admin == msg.sender ) {
+            admin = 0x00;
+        }
+        var (_success, _newUID) = db.openProvider(msg.sender, priv, name, website, country, info, rate, isForRent, admin);
+        require( _success );
+        return _newUID;
+    }
+    function _closeProvider(address owner, uint256 providerUID) internal {
+        var _success = db.closeProvider(owner, providerUID);
+        require( _success );
+    }
+    function _setProviderInfoFields(uint256 providerUID, string name, string website, 
+        string country, string info, address admin, uint8 rate) internal {
+        var _success = db.setProviderInfoFields(providerUID, name, website, country, info, admin, rate);
+        require( _success );
+    }
+    function _isProviderValid(uint256 providerUID) internal returns(bool valid) {
+        var ( _success, _valid ) = db.isProviderValid(providerUID);
+        require( _success );
+        return _valid;
+    }
+    function _getProviderOwner(uint256 providerUID) internal returns(address owner) {
+        var ( _success, _owner ) = db.getProviderOwner(providerUID);
+        require( _success );
+        return _owner;
+    }
+    function _getProviderClosed(uint256 providerUID) internal returns(uint256 closed) {
+        var ( _success, _closed ) = db.getProviderClosed(providerUID);
+        require( _success );
+        return _closed;
+    }
+    function _getProviderAdmin(uint256 providerUID) internal returns(address admin) {
+        var ( _success, _admin ) = db.getProviderAdmin(providerUID);
+        require( _success );
+        return _admin;
+    }
+    function _setProviderAllowUser(uint256 providerUID, address clientAddress, bool status) internal {
+        var _success = db.setProviderAllowUser(providerUID, clientAddress, status);
+        require( _success );
+    }
+    function _getProviderPriv(uint256 providerUID) internal returns(bool priv) {
+        var ( _success, _priv ) = db.getProviderPriv(providerUID);
+        require( _success );
+        return _priv;
+    }
+    function _getProviderSupply(uint256 providerUID) internal returns(uint256 supply) {
+        var ( _success, _supply ) = db.getProviderSupply(providerUID);
+        require( _success );
+        return _supply;
+    }
+    function _getProviderSupply(uint256 providerUID, uint256 schellingRound) internal returns(uint256 supply, bool valid) {
+        var ( _success, _supply, _valid ) = db.getProviderSupply(providerUID, schellingRound);
+        require( _success );
+        return ( _supply, _valid );
+    }
+    function _getProviderSupply(uint256 providerUID, uint256 schellingRound, uint256 oldAmount) internal returns(uint256 supply) {
+        var ( _success, _supply, _valid ) = db.getProviderSupply(providerUID, schellingRound);
+        require( _success );
+        if ( _valid ) {
+            return _supply;
+        }
+        return oldAmount;
+    }
+    function _setProviderSupply(uint256 providerUID, uint256 amount) internal {
+        var ( _success ) = db.setProviderSupply(providerUID, amount);
+        require( _success );
+    }
+    function _setProviderSupply(uint256 providerUID, uint256 schellingRound, uint256 amount) internal {
+        var ( _success ) = db.setProviderSupply(providerUID, schellingRound, amount);
+        require( _success );
+    }
+    function _getProviderIsForRent(uint256 providerUID) internal returns(bool isForRent) {
+        var ( _success, _isForRent ) = db.getProviderIsForRent(providerUID);
+        require( _success );
+        return _isForRent;
+    }
+    function _getProviderRateHistory(uint256 providerUID, uint256 schellingRound, uint8 oldRate) internal returns(uint8 rate) {
+        var ( _success, _rate, _valid ) = db.getProviderRateHistory(providerUID, schellingRound);
+        require( _success );
+        if ( _valid ) {
+            return _rate;
+        } else {
+            return oldRate;
+        }
+    }
+    //schelling
+    function _getCurrentSchellingRound() internal returns(uint256 roundID) {
+        var ( _success, _roundID ) = db.getCurrentSchellingRound();
+        require( _success );
+        return _roundID;
+    }
+    function _getSchellingRoundDetails(uint256 roundID) internal returns(uint256 reward, uint256 supply) {
+        var ( _success, _reward, _supply ) = db.getSchellingRoundDetails(roundID);
+        require( _success );
+        return ( _reward, _supply );
+    }
+    function _getSchellingRoundSupply() internal returns(uint256 supply) {
+        var ( _success, _supply ) = db.getSchellingRoundDetails();
+        require( _success );
+        return _supply;
+    }
+    function _setSchellingRoundSupply(uint256 amount) internal {
+        var ( _success ) = db.setSchellingRoundSupply(amount);
+        require( _success );
+    }
+    /* Enumerations */
+    enum rightForInterest_e {
+        yes_yes,    //0
+        yes_no,     //1
+        no_yes,     //2
+        no_no       //3
+    }
+    /* Structures */
+    struct checkReward_s {
+        address owner;
         address admin;
-        string name;
-        string website;
-        string country;
-        string info;
-        bool isForRent;
-        mapping(uint256 => _rate) rateHistory;
-        uint8 currentRate;
-        bool priv;
-        uint256 clientsCount;
-        mapping(address => bool) allowedUsers;
-        mapping(uint256 => uint256) supply;
-        uint256 lastSupplyID;
-        mapping(uint256 => uint256) ownSupply;
-        uint256 lastOwnSupplyID;
-        uint256 paidUpTo;
-        uint8 lastPaidRate;
-        uint256 create;
-        uint256 close;
-        bool valid;
+        senderStatus_e senderStatus;
+        uint256 roundID;
+        uint256 providerSupply;
+        uint256 clientSupply;
+        uint256 ownerSupply;
+        uint256 schellingReward;
+        uint256 schellingSupply;
+        uint8   rate;
+        bool    priv;
+        bool    isForRent;
+        uint256 closed;
+        uint256 ownerPaidUpTo;
+        uint256 clientPaidUpTo;
+        bool getInterest;
+        uint256 tmpReward;
+        uint256 currentSchellingRound;
+        uint256 senderReward;
+        uint256 adminReward;
+        uint256 ownerReward;
+        bool setOwnerRate;
     }
-    struct _providers {
-        mapping(uint256 => __providers) data;
-        uint256 currentHeight;
+    struct newProvider_s {
+        uint256 balance;
+        uint256 newUID;
     }
-    mapping(address => _providers) private providers;
-    
-    struct _globalFunds {
-        uint256 reward;
-        uint256 supply;
-    }
-    mapping(uint256 => _globalFunds) private globalFunds;
-    
-    struct _client{
-        address providerAddress;
-        uint256 providerHeight;
-        uint256 providerConnected;
-        uint8 lastRate;
-        mapping(uint256 => uint256) supply;
-        uint256 lastSupplyID;
-        uint256 paidUpTo;
-    }
-    mapping(address => _client) private clients;
-    
-    uint256 private currentSchellingRound = 1;
-
-    function provider(address _moduleHandler) {
+    /* Variables */
+    uint256 public minFundsForPublic    = 3e12;
+    uint256 public minFundsForPrivate   = 8e12;
+    uint256 public privateProviderLimit = 250;
+    uint8   public publicMinRate        = 30;
+    uint8   public privateMinRate       = 0;
+    uint8   public publicMaxRate        = 70;
+    uint8   public privateMaxRate       = 100;
+    uint256 public gasProtectMaxRounds  = 240;
+    uint256 public interestMinFunds     = 25e12;
+    uint256 public rentRate             = 20;
+    providerDB public db;
+    /* Constructor */
+    function provider(bool forReplace, address moduleHandlerAddr, address dbAddr) module(moduleHandlerAddr) {
         /*
             Install function.
             
-            @_moduleHandler     Address of the moduleHandler.
+            @forReplace                 This address will be replaced with the old one or not.
+            @moduleHandlerAddr          Modulhandler's address
+            @dbAddr                     Address of database           
         */
-        super.registerModuleHandler(_moduleHandler);
-    }
-    function configure(announcementType a, uint256 b) external returns(bool) {
-        /*
-            Configuration of the provider. Can be invited just by the moduleHandler.
-            
-            @a      Type of the setting
-            @b      value
-        */
-        require( super.isModuleHandler(msg.sender) );
-        if      ( a == announcementType.providerPublicFunds )          { minFundsForPublic = b; }
-        else if ( a == announcementType.providerPrivateFunds )         { minFundsForPrivate = b; }
-        else if ( a == announcementType.providerPrivateClientLimit )   { privateProviderLimit = b; }
-        else if ( a == announcementType.providerPublicMinRate )        { publicMinRate = uint8(b); }
-        else if ( a == announcementType.providerPublicMaxRate )        { publicMaxRate = uint8(b); }
-        else if ( a == announcementType.providerPrivateMinRate )       { privateMinRate = uint8(b); }
-        else if ( a == announcementType.providerPrivateMaxRate )       { privateMaxRate = uint8(b); }
-        else if ( a == announcementType.providerGasProtect )           { gasProtectMaxRounds = b; }
-        else if ( a == announcementType.providerInterestMinFunds )     { interestMinFunds = b; }
-        else if ( a == announcementType.providerRentRate )             { rentRate = b; }
-        else { return false; }
-        return true;
-    }
-    function getUserDetails(address addr, uint256 schellingRound) public constant returns (address ProviderAddress, uint256 ProviderHeight, uint256 ConnectedOn, uint256 value) {
-        /*
-            Collecting the datas of the client.
-            
-            @addr               Address of the client.
-            @schellingRound     Number of the schelling round. If it is not defined then the current one.
-            @ProviderAddress    Address of the provider the one where connected to
-            @ProviderHeight     The height (level) of the provider where is connected.
-            @ConnectedOn        Time of connection
-            @value              Quantity of the client’s token
-        */
-        if ( schellingRound == 0 ) {
-            schellingRound = currentSchellingRound;
+        require( dbAddr != 0x00 );
+        db = providerDB(dbAddr);
+        if ( forReplace ) {
+            require( db.replaceOwner(this) );
         }
-        if ( clients[addr].providerAddress != 0 ) {
-            ProviderAddress = clients[addr].providerAddress;
-            ProviderHeight  = clients[addr].providerHeight;
-            ConnectedOn     = clients[addr].providerConnected;
-            value           = clients[addr].supply[schellingRound];
-        }
+        balanceOf[0x6e5fd1741e45c966a76a077af9132627c07b0dc1] = 1e13; //iFA
+        balanceOf[0x153ee6ad2e7e665b8a07ff37d93271d6e5fdc6d4] = 1e12; //Pista
+        balanceOf[0xef057953c56855f16e658bf8fd0d2e300961fc1f] = 1e15; //Foundation
+        //balanceOf[0xca35b7d915458ef540ade6068dfe2f44e8fa733c] = 1e15; //JSVM #1
+        balanceOf[0xbd3c601b59f46cc59be3446ba29c66b9182a70b6] = 1e7;  //Attila
+        balanceOf[0x2c284ef5a0d50dda177bd8c9fdf20610f6fdac09] = 9e10; //Miki
     }
-    function rightForInterest(uint256 value, bool priv) internal returns (bool) {
-        /*
-            the share from the token emission.
-            In case is a private provider it has to be checked if it has enough connected capital to be able to accept share from the token emission.
-            The provider’s account counts as a capital for the emission as well.
-            
-            @value      amount of the connected capital
-            @priv       Is the provider private or not? 
-            @bool       Gets the share from the token emission.
-        */
-        if ( priv ) {
-            return ( value >= interestMinFunds );
-        }
-        return true;
-    }
-    function setRightForInterest(uint256 oldValue, uint256 newValue, bool priv) internal {
-        /*
-            It checks if the provider has enough connected captital to be able to get from the token emission.
-            In case the provider is not able to get the share from the token emission then the connected capital will not count to the value of the globalFunds, to the current schelling round.
-            
-            @oldValue       old  
-            @newValue       new
-            @priv           Is the provider private?
-        */
-        var a = rightForInterest(oldValue, priv);
-        var b = rightForInterest(newValue, priv);
-        if ( a && b ) {
-            globalFunds[currentSchellingRound].supply = globalFunds[currentSchellingRound].supply - oldValue + newValue;
-        } else if ( a && ! b ) {
-            globalFunds[currentSchellingRound].supply -= oldValue;
-        } else if ( ! a && b ) {
-            globalFunds[currentSchellingRound].supply += newValue;
-        }
-    }
-    function checkCorrectRate(bool priv, uint8 rate) internal returns(bool) {
-        /*
-            Inner function which checks if the amount of interest what is given by the provider is fits to the criteria.
-            
-            @priv       Is the provider private or not?
-            @rate       Percentage/rate of the interest
-            @bool       Correct or not?
-        */
-        return ( ! priv && ( rate >= publicMinRate && rate <= publicMaxRate ) ) || 
-                ( priv && ( rate >= privateMinRate && rate <= privateMaxRate ) );
-    }
-    function createProvider(bool priv, string name, string website, string country, string info, uint8 rate, bool isForRent, address admin) isReady external {
+    /* Externals */
+    function openProvider(bool priv, string name, string website, string country, string info, uint8 rate, bool isForRent, address admin) readyModule external {
         /*
             Creating a provider.
             During the ICO its not allowed to create provider.
@@ -217,191 +862,69 @@ contract provider is module, safeMath {
             Address, how is connected to the provider can not create a provider.
             For opening, has to have enough capital.
             All the functions of the provider except of the closing are going to be handled by the admin.
-            The provider can be start as a rent as well, in this case the isForRent has to be true/correct. In case it runs as a rent the 20% of the profit will belong to the leser and the rest goes to the admin.
+            The provider can be start as a rent as well, in this case the isForRent has to be true/correct.
+            In case it runs as a rent the 20% of the profit will belong to the leser and the rest goes to the admin.
             
-            @priv           Privat szolgaltato e. Is private provider?
+            @priv           Is private provider?
             @name           Provider’s name.
-            @website        Provider’s website
-            @country        Provider’s country
+            @website        Provider’s website.
+            @country        Provider’s country.
             @info           Provider’s short introduction.
             @rate           Rate of the emission what is going to be transfered to the client by the provider.
-            @isForRent      is for Rent or not?
-            @admin          The admin’s address
+            @isForRent      Is for Rent or not?
+            @admin          The admin's address.
         */
-        require( ! providers[msg.sender].data[providers[msg.sender].currentHeight].valid );
-        require( clients[msg.sender].providerAddress == 0x00 );
+        newProvider_s memory _newProvider;
+        _newProvider.balance = getTokenBalance(msg.sender);
+        checkCorrectRate(priv, rate);
+        require( ( ! isForRent ) || ( isForRent && admin != 0x00) );
         require( ! checkICO() );
+        require( _getClientProviderUID(msg.sender) == 0x00 );
+        require( ( priv && ( _newProvider.balance >= minFundsForPrivate )) || ( ! priv && ( _newProvider.balance >= minFundsForPublic )) );
+        _newProvider.newUID = _openProvider(priv, name, website, country, info, rate, isForRent, admin);
         if ( priv ) {
-            require( getTokenBalance(msg.sender) >= minFundsForPrivate );
-        } else {
-            require( getTokenBalance(msg.sender) >= minFundsForPublic );
+            appendSupplyChanges(_newProvider.newUID, msg.sender, false, _newProvider.balance);
         }
-        require( checkCorrectRate(priv, rate) );
-        
-        providers[msg.sender].currentHeight++;
-        var currHeight = providers[msg.sender].currentHeight;
-        providers[msg.sender].data[currHeight].valid           = true;
-        if ( admin == 0x00 ) { 
-            providers[msg.sender].data[currHeight].admin      = msg.sender;
-        } else {
-            providers[msg.sender].data[currHeight].admin      = admin;
-        }
-        providers[msg.sender].data[currHeight].name            = name;
-        providers[msg.sender].data[currHeight].website         = website;
-        providers[msg.sender].data[currHeight].isForRent       = isForRent;
-        providers[msg.sender].data[currHeight].country         = country;
-        providers[msg.sender].data[currHeight].info            = info;
-        providers[msg.sender].data[currHeight].currentRate     = rate;
-        providers[msg.sender].data[currHeight].create          = now;
-        providers[msg.sender].data[currHeight].lastPaidRate    = rate;
-        providers[msg.sender].data[currHeight].priv            = priv;
-        providers[msg.sender].data[currHeight].lastSupplyID    = currentSchellingRound;
-        providers[msg.sender].data[currHeight].paidUpTo        = currentSchellingRound;
-        if ( priv ) {
-            providers[msg.sender].data[currHeight].supply[currentSchellingRound]        = getTokenBalance(msg.sender);
-            providers[msg.sender].data[currHeight].ownSupply[currentSchellingRound]     = getTokenBalance(msg.sender);
-            providers[msg.sender].data[currHeight].lastOwnSupplyID                      = currentSchellingRound;
-        } else {
-            delete providers[msg.sender].data[currHeight].supply[currentSchellingRound];
-        }
-        EProviderOpen(msg.sender, currHeight);
+        _joinToProvider(_newProvider.newUID, msg.sender);
+        EProviderOpen(_newProvider.newUID);
     }
-    function setProviderDetails(address addr, string website, string country, string info, uint8 rate, address admin) isReady external {
+    function closeProvider() readyModule external {
+        /*
+            Closing and inactivate the provider.
+            It is only possible to close that active provider which is owned by the sender itself after calling the whole share of the emission.
+            Whom were connected to the provider those clients will have to disconnect after they’ve called their share of emission which was not called before.
+        */
+        var providerUID = _getClientProviderUID(msg.sender);
+        require( providerUID > 0 );
+        require( _getProviderOwner(providerUID) == msg.sender );
+        require( _isClientPaidUp(msg.sender) );
+        appendSupplyChanges(providerUID, msg.sender, true, getTokenBalance(msg.sender));
+        _closeProvider(msg.sender, providerUID);
+        EProviderClose(providerUID);
+    }
+    function setProviderDetails(uint256 providerUID, string name, string website, string country, string info, uint8 rate, address admin) readyModule external {
         /*
             Modifying the datas of the provider.
             This can only be invited by the provider’s admin.
             The emission rate is only valid for the next schelling round for this one it is not.
             The admin can only be changed by the address of the provider.
             
-            @addr               Address of the provider.
+            @providerUID        Address of the provider.
+            @name               Provider's name.
             @website            Website.
-            @admin              The new address of the admin. If we do not want to set it then we should enter 0X00. 
-            @country            Country
+            @country            Country.
             @info               Short intro.
             @rate               Rate of the emission what will be given to the client.
+            @admin              The new address of the admin. If we do not want to set it then we should enter 0x00. 
         */
-        var currHeight = providers[addr].currentHeight;
-        require( providers[addr].data[currHeight].valid );
-        require( checkCorrectRate(providers[addr].data[currHeight].priv, rate) );
-        require( providers[addr].data[currHeight].admin == msg.sender || msg.sender == addr );
-        if ( admin != 0x00 ) {
-            require( msg.sender == addr );
-            providers[addr].data[currHeight].admin = admin;
-        }
-        providers[addr].data[currHeight].rateHistory[currentSchellingRound] = _rate( rate, true );
-        providers[addr].data[currHeight].website         = website;
-        providers[addr].data[currHeight].country         = country;
-        providers[addr].data[currHeight].info            = info;
-        providers[addr].data[currHeight].currentRate     = rate;
-        EProviderDetailsChanged(addr, currHeight, website, country, info, rate, admin);
+        require( _isProviderValid(providerUID) );
+        var _status = _getSenderStatus(providerUID);
+        require( (_status == senderStatus_e.owner) ||
+            ( ( _status == senderStatus_e.admin || _status == senderStatus_e.adminAndClient ) && admin == 0x00) );
+        _setProviderInfoFields(providerUID, name, website, country, info, admin, rate);
+        EProviderNewDetails(providerUID);
     }
-    function getProviderInfo(address addr, uint256 height) public constant returns (string name, string website, string country, string info, uint256 create) {
-        /*
-            for the infos of the provider.
-            In case the height is unknown then the system will use the last known height.
-            
-            @addr           Addr of the provider
-            @height         Height
-            @name           Name of the provider.
-            @website        Website of the provider.
-            @country        Country of the provider.
-            @info           Short intro of the provider.
-            @create         Timestamp of creating the provider
-        */
-        if ( height == 0 ) {
-            height = providers[addr].currentHeight;
-        }
-        name            = providers[addr].data[height].name;
-        website         = providers[addr].data[height].website;
-        country         = providers[addr].data[height].country;
-        info            = providers[addr].data[height].info;
-        create          = providers[addr].data[height].create;
-    }
-    function getProviderDetails(address addr, uint256 height) public constant returns (uint8 rate, bool isForRent, uint256 clientsCount, bool priv, bool getInterest, bool valid) {
-        /*
-            Asking for the datas of the provider.
-            In case the height is unknown then the system will use the last known height.
-
-            @addr           Address of the provider
-            @height         Height
-            @rate           The rate of the emission which will be transfered to the client.
-            @isForRent      Rent or not.
-            @clientsCount   Number of the clients.
-            @priv           Private or not?
-            @getInterest    Does get from the token emission?
-            @valid          Is an active provider?
-        */
-        if ( height == 0 ) {
-            height = providers[addr].currentHeight;
-        }
-        rate            = providers[addr].data[height].currentRate;
-        isForRent       = providers[addr].data[height].isForRent;
-        clientsCount    = providers[addr].data[height].clientsCount;
-        priv            = providers[addr].data[height].priv;
-        getInterest     = rightForInterest(getProviderCurrentSupply(addr), providers[addr].data[height].priv );
-        valid           = providers[addr].data[height].valid;
-    }
-    function getProviderCurrentSupply(address addr) internal returns (uint256) {
-        /*
-            Inner function for polling the current height and the current quantity of the connected capital of the schelling round.
-            
-            @addr           Provider’s address.
-            @uint256        Amount of the connected capital
-        */
-        return providers[addr].data[providers[addr].currentHeight].supply[currentSchellingRound];
-    }
-    function closeProvider() isReady external {
-        /*
-            Closing and inactivate the provider.
-            It is only possible to close that active provider which is owned by the sender itself after calling the whole share of the emission.
-            Whom were connected to the provider those clients will have to disconnect after they’ve called their share of emission which was not called before.
-        */
-        var currHeight = providers[msg.sender].currentHeight;
-        require( providers[msg.sender].data[currHeight].valid );
-        require( providers[msg.sender].data[currHeight].paidUpTo == currentSchellingRound );
-        
-        providers[msg.sender].data[currHeight].valid = false;
-        providers[msg.sender].data[currHeight].close = currentSchellingRound;
-        setRightForInterest(getProviderCurrentSupply(msg.sender), 0, providers[msg.sender].data[currHeight].priv);
-        EProviderClose(msg.sender, currHeight);
-    }
-    function allowUsers(address provider, address[] addr) isReady external {
-        /*
-            Permition of the user to be able to connect to the provider.
-            This can only be invited by the provider’s admin.
-            With this kind of call only 100 address can be permited. 
-            
-            @addr       Array of the addresses for whom the connection is allowed.
-        */
-        var currHeight = providers[provider].currentHeight;
-        require( providers[provider].data[currHeight].valid );
-        require( providers[provider].data[currHeight].priv );
-        require( providers[provider].data[currHeight].admin == msg.sender );
-        require( addr.length <= 100 );
-        
-        for ( uint256 a=0 ; a<addr.length ; a++ ) {
-            providers[provider].data[currHeight].allowedUsers[addr[a]] = true;
-        }
-    }
-    function disallowUsers(address provider, address[] addr) isReady external {
-        /*
-            Disable of the user not to be able to connect to the provider.
-            It is can called only for the admin of the provider.
-            With this kind of call only 100 address can be permited. 
-            
-            @addr      Array of the addresses for whom the connection is allowed.
-        */
-        var currHeight = providers[provider].currentHeight;
-        require( providers[provider].data[currHeight].valid );
-        require( providers[provider].data[currHeight].priv );
-        require( providers[provider].data[currHeight].admin == msg.sender );
-        require( addr.length <= 100 );
-        
-        for ( uint256 a=0 ; a<addr.length ; a++ ) {
-            delete providers[provider].data[currHeight].allowedUsers[addr[a]];
-        }
-    }
-    function joinProvider(address provider) isReady external {
+    function joinProvider(uint256 providerUID) readyModule external {
         /*
             Connection to the provider.
             Providers can not connect to other providers.
@@ -411,358 +934,339 @@ contract provider is module, safeMath {
             At private providers, the number of the client is restricted. If it reaches the limit no further clients are allowed to connect.
             This process has a transaction fee based on the senders whole token quantity.
             
-            @provider       Address of the provider.
+            @providerUID        Provider Unique ID
         */
-        var currHeight = providers[provider].currentHeight;
-        require( ! providers[msg.sender].data[currHeight].valid );
-        require( clients[msg.sender].providerAddress == 0x00 );
-        require( providers[provider].data[currHeight].valid );
-        if ( providers[provider].data[currHeight].priv ) {
-            require( providers[provider].data[currHeight].allowedUsers[msg.sender] &&
-                     providers[provider].data[currHeight].clientsCount < privateProviderLimit );
-        }
-        var bal = getTokenBalance(msg.sender);
-        require( moduleHandler(moduleHandlerAddress).processTransactionFee(msg.sender, bal) );
-        
-        checkFloatingSupply(provider, currHeight, false, bal);
-        providers[provider].data[currHeight].clientsCount++;
-        clients[msg.sender].providerAddress = provider;
-        clients[msg.sender].providerHeight = currHeight;
-        clients[msg.sender].supply[currentSchellingRound] = bal;
-        clients[msg.sender].lastSupplyID = currentSchellingRound;
-        clients[msg.sender].paidUpTo = currentSchellingRound;
-        clients[msg.sender].lastRate = providers[provider].data[currHeight].currentRate;
-        clients[msg.sender].providerConnected = now;
-        ENewClient(msg.sender, provider, currHeight, bal);
+        require( _checkForJoin(providerUID, msg.sender, privateProviderLimit) );
+        var _supply = getTokenBalance(msg.sender);
+        // We charge fee
+        // require( moduleHandler(moduleHandlerAddress).processTransactionFee(msg.sender, _supply) );
+        _supply = getTokenBalance(msg.sender);
+        appendSupplyChanges(providerUID, msg.sender, false, _supply);
+        _joinToProvider(providerUID, msg.sender);
+        EJoinProvider(providerUID, msg.sender);
     }
-    function partProvider() isReady external {
+    function partProvider() readyModule external {
         /*
             Disconnecting from the provider.
             Before disconnecting we should poll our share from the token emission even if there was nothing factually.
             It is only possible to disconnect those providers who were connected by us before.
         */
-        var provider = clients[msg.sender].providerAddress;
-        require( provider != 0x0 );
-        var currHeight = clients[msg.sender].providerHeight;
-        bool providerHasClosed = false;
-        if ( providers[provider].data[currHeight].close > 0 ) {
-            providerHasClosed = true;
-            require( clients[msg.sender].paidUpTo == providers[provider].data[currHeight].close );
-        } else {
-            require( clients[msg.sender].paidUpTo == currentSchellingRound );
-        }
-        
-        var bal = getTokenBalance(msg.sender);
-        if ( ! providerHasClosed ) {
-            providers[provider].data[currHeight].clientsCount--;
-            checkFloatingSupply(provider, currHeight, true, bal);
-        }
-        delete clients[msg.sender].providerAddress;
-        delete clients[msg.sender].providerHeight;
-        delete clients[msg.sender].lastSupplyID;
-        delete clients[msg.sender].paidUpTo;
-        delete clients[msg.sender].lastRate;
-        delete clients[msg.sender].providerConnected;
-        EClientLost(msg.sender, provider, currHeight, bal);
+        var providerUID = _getClientProviderUID(msg.sender);
+        require( providerUID > 0 );
+        // Is paid up?
+        require( _isClientPaidUp(msg.sender) );
+        var _supply = getTokenBalance(msg.sender);
+        appendSupplyChanges(providerUID, msg.sender, true, _supply);
+        _partFromProvider(providerUID, msg.sender);
+        EPartProvider(providerUID, msg.sender);
     }
-    function checkReward(address addr) public constant returns (uint256 reward) {
-        /*
-            Polling the share from the token emission for clients and for providers.
-            
-            @addr           The address want to check.
-            @reward         Accumulated amount.
-        */
-        if ( providers[addr].data[providers[addr].currentHeight].valid ) {
-            uint256 a;
-            (reward, a) = getProviderReward(addr, 0);
-        } else if ( clients[addr].providerAddress != 0x0 ) {
-            reward = getClientReward(0);
-        }
-    }
-    function getReward(address beneficiary, uint256 limit, address provider) isReady external returns (uint256 reward) {
+    function getReward(address beneficiary, uint256 providerUID, uint256 roundLimit) readyModule external {
         /*
             Polling the share from the token emission token emission for clients and for providers.
 
             It is optionaly possible to give an address of a beneficiary for whom we can transfer the accumulated amount. In case we don’t enter any address then the amount will be transfered to the caller’s address.
             As the interest should be checked at each schelling round in order to get the share from that so to avoid the overflow of the gas the number of the check-rounds should be limited.
-            Opcionalisan megadhato az ellenorzes koreinek szama. It is possible to enter optionaly the number of the check-rounds.  If it is 0 then it is automatic.
-            Provider variable should only be entered if the real owner of the provider is not the caller’s address.
-            In case the client/provider was far behind then it is possible that this function should be called several times to check the total generated schelling rounds and to collect the share.
-            If is neighter a client nor a provider then the function is not available.
-            The tokens will be sent to the beneficiary from the address of the provider without any transaction fees.
+            It is possible to enter optionaly the number of the check-rounds.  If it is 0 then it is automatic.
             
             @beneficiary        Address of the beneficiary
             @limit              Quota of the check-rounds.
-            @provider           Address of the provider
+            @providerUID        Unique ID of the provider
             @reward             Accumulated amount from the previous rounds.
         */
-        var _limit = limit;
+        var _roundLimit = roundLimit;
         var _beneficiary = beneficiary;
-        var _provider = provider;
-        if ( _limit == 0 ) { _limit = gasProtectMaxRounds; }
+        if ( _roundLimit == 0 ) { _roundLimit = gasProtectMaxRounds; }
         if ( _beneficiary == 0x00 ) { _beneficiary = msg.sender; }
-        if ( _provider == 0x00 ) { _provider = msg.sender; }
-        uint256 clientReward;
-        uint256 providerReward;
-        if ( providers[_provider].data[providers[_provider].currentHeight].valid ) {
-            require( providers[_provider].data[providers[_provider].currentHeight].admin == msg.sender || msg.sender == _provider );
-            (providerReward, clientReward) = getProviderReward(_provider, _limit);
-        } else if ( clients[msg.sender].providerAddress != 0x00 ) {
-            clientReward = getClientReward(_limit);
+        var (_data, _round) = checkReward(msg.sender, providerUID, _roundLimit);
+        require( _round > 0 );
+        if ( msg.sender == _data.admin ) {
+            if ( safeAdd(_data.senderReward, _data.adminReward) > 0 ) {
+                balanceOf[_beneficiary] = safeAdd(balanceOf[_beneficiary], safeAdd(_data.senderReward, _data.adminReward));
+                appendSupplyChanges(providerUID, _beneficiary, false, safeAdd(_data.senderReward, _data.adminReward));
+                //require( moduleHandler(moduleHandlerAddress).transfer(address(this), _beneficiary, safeAdd(_data.senderReward, _data.adminReward), false ) );
+            }
         } else {
-            throw;
+            if ( _data.senderReward > 0 )  {
+                balanceOf[_beneficiary] = safeAdd(balanceOf[_beneficiary], _data.senderReward);
+                appendSupplyChanges(providerUID, _beneficiary, false, _data.senderReward);
+                //require( moduleHandler(moduleHandlerAddress).transfer(address(this), _beneficiary, _data.senderReward, false ) );
+            }
+            if ( _data.adminReward > 0 )  {
+                balanceOf[_data.admin] = safeAdd(balanceOf[_data.admin], _data.adminReward);
+                appendSupplyChanges(providerUID, _data.admin, false, _data.adminReward);
+                //require( moduleHandler(moduleHandlerAddress).transfer(address(this), _data.admin, _data.adminReward, false ) );
+            }
         }
-        if ( clientReward > 0 ) {
-            require( moduleHandler(moduleHandlerAddress).transfer(address(this), _beneficiary, clientReward, false) );
+        if ( _data.ownerReward > 0 )  {
+            balanceOf[_data.owner] = safeAdd(balanceOf[_data.owner], _data.ownerReward);
+            appendSupplyChanges(providerUID, _data.owner, false, _data.ownerReward);
+            //require( moduleHandler(moduleHandlerAddress).transfer(address(this), _data.owner, _data.ownerReward, false ) );
         }
-        if ( providerReward > 0 ) {
-            require( moduleHandler(moduleHandlerAddress).transfer(address(this), provider, providerReward, false) );
-        }
-        EReward(msg.sender, provider, clientReward, providerReward);
     }
-    function getClientReward(uint256 limit) internal returns (uint256 reward) {
+    function changeAllowedClients(uint256 providerUID, address[] allow, address[] disallow) readyModule external {
         /*
-            Inner function for the client in order to collect the share from the token emission
+            Permition of the user to be able to connect to the provider.
+            This can only be invited by the provider's owner or admin.
+            With this kind of call only 100 address can be permited. 
             
-            @limit          Quota of checking the schelling-rounds.
-            @reward         Collected token amount from the checked rounds.
+            @providerUID            Provider Unique ID
+            @allow                  Array of the addresses for whom the connection is allowed.
+            @disallow               Array of the addresses for whom the connection is disallowed.
         */
-        uint256 value;
-        uint256 steps;
-        address provAddr;
-        uint256 provHeight;
-        bool interest = false;
-        var rate = clients[msg.sender].lastRate;
-        for ( uint256 a = (clients[msg.sender].paidUpTo + 1) ; a <= currentSchellingRound ; a++ ) {
-            if (globalFunds[a].reward > 0 && globalFunds[a].supply > 0) {
-                provAddr = clients[msg.sender].providerAddress;
-                provHeight = clients[msg.sender].providerHeight;
-                if ( providers[provAddr].data[provHeight].rateHistory[a].valid ) {
-                    rate = providers[provAddr].data[provHeight].rateHistory[a].value;
-                }
-                if ( rate > 0 ) {
-                    if ( a > providers[provAddr].data[provHeight].lastSupplyID ) {
-                        interest = rightForInterest(providers[provAddr].data[provHeight].supply[providers[provAddr].data[provHeight].lastSupplyID], providers[provAddr].data[provHeight].priv);
-                    } else {
-                        interest = rightForInterest(providers[provAddr].data[provHeight].supply[a], providers[provAddr].data[provHeight].priv);
+        uint256 a;
+        require( allow.length <= 100 && disallow.length <= 100 );
+        require( _isProviderValid(providerUID) );
+        var _status = _getSenderStatus(providerUID);
+        require( _status == senderStatus_e.owner || 
+            _status == senderStatus_e.admin || 
+            _status == senderStatus_e.adminAndClient );
+        for ( a=0 ; a<allow.length ; a++ ) {
+            _setProviderAllowUser(providerUID, allow[a], true);
+        }
+        for ( a=0 ; a<disallow.length ; a++ ) {
+            _setProviderAllowUser(providerUID, disallow[a], false);
+        }
+    }
+    /* Internals */
+    function checkReward(address client, uint256 providerUID, uint256 roundLimit) internal returns(checkReward_s data, uint256 round) {
+        if ( providerUID == 0) {
+            return;
+        }
+        var senderStatus = _getSenderStatus(providerUID);
+        if ( senderStatus == senderStatus_e.none ) {
+            return;
+        }
+        data.owner = _getProviderOwner(providerUID);
+        data.admin = _getProviderAdmin(providerUID);
+        data.priv = _getProviderPriv(providerUID);
+        data.isForRent = _getProviderIsForRent(providerUID);
+        
+        /* OLD UNOPTIMIZED
+        // this below need to be optimized
+        if ( senderStatus == senderStatus_e.client) {
+            data.clientPaidUpTo = _getClientPaidUpTo(client);
+            data.roundID = data.clientPaidUpTo;
+            
+        } else if ( senderStatus == senderStatus_e.admin) {
+            data.ownerPaidUpTo = _getClientPaidUpTo(data.owner);
+            data.roundID = data.ownerPaidUpTo;
+            
+        } else if ( senderStatus == senderStatus_e.adminAndClient) {
+            data.ownerPaidUpTo = _getClientPaidUpTo(data.owner);
+            data.clientPaidUpTo = _getClientPaidUpTo(client);
+            
+            if ( data.clientPaidUpTo > data.ownerPaidUpTo ) {
+                data.roundID = data.ownerPaidUpTo;
+            } else {
+                data.roundID = data.clientPaidUpTo;
+            }
+        } else if ( senderStatus == senderStatus_e.owner) {
+            data.ownerPaidUpTo = _getClientPaidUpTo(data.owner);
+            data.roundID = data.ownerPaidUpTo;
+        }
+        // this above need to be optimized */
+        // Get paidUps and set the first schelling round ID (OPTIMIZED)
+        data.clientPaidUpTo = _getClientPaidUpTo(client);
+        data.roundID = data.clientPaidUpTo;
+        if ( senderStatus != senderStatus_e.client) {
+            data.ownerPaidUpTo = _getClientPaidUpTo(data.owner);
+            if ( senderStatus == senderStatus_e.adminAndClient && data.clientPaidUpTo < data.ownerPaidUpTo ) {
+                data.roundID = data.clientPaidUpTo;
+            } else {
+                data.roundID = data.ownerPaidUpTo;
+            }
+        }
+        
+        data.currentSchellingRound = _getCurrentSchellingRound();
+        data.closed = _getProviderClosed(providerUID);
+        if ( data.closed > 0 && data.closed < data.currentSchellingRound ) {
+            data.currentSchellingRound = data.closed;
+        }
+        
+        // load last rate
+        if ( senderStatus == senderStatus_e.admin ) {
+            data.rate = _getClientLastPaidRate(data.owner);
+        } else {
+            data.rate = _getClientLastPaidRate(client);
+        }
+        
+        // For loop START
+        for ( data.roundID=0 ; data.roundID<data.currentSchellingRound ; data.roundID++ ) {
+            if ( roundLimit > 0 && round == roundLimit ) { break; }
+            round++;
+            // Get provider Rate
+            data.rate = _getProviderRateHistory(providerUID, data.roundID, data.rate);
+            // Get schelling reward and supply for the current checking round
+            (data.schellingReward, data.schellingSupply) = _getSchellingRoundDetails(data.roundID);
+            // Get provider supply for the current checking round
+            data.providerSupply = _getProviderSupply(providerUID, data.roundID, data.providerSupply);
+            // Get client/owner supply for this checking round
+            if ( data.clientPaidUpTo > 0 ) {
+                data.clientSupply = _getClientSupply(client, data.roundID, data.clientSupply);
+            }
+            if ( data.ownerPaidUpTo > 0 ) {
+                data.ownerSupply = _getClientSupply(data.owner, data.roundID, data.ownerSupply);
+            }
+            // Check, that the Provider has right for getting interest for the current checking round
+            data.getInterest = ( ! data.priv ) || ( data.priv && interestMinFunds <= data.providerSupply );
+            // Checking client reward if he is the sender
+            if ( senderStatus == senderStatus_e.client || senderStatus == senderStatus_e.adminAndClient ) {
+                if ( ! ( data.isForRent && data.clientPaidUpTo > data.roundID ) ) {
+                    if ( data.schellingSupply > 0 && data.rate > 0 && data.getInterest ) {
+                        data.senderReward = safeAdd(data.senderReward, safeMul(safeMul(data.schellingReward, data.clientSupply) / data.schellingSupply, data.rate) / 100);
                     }
-                    if ( interest ) {
-                        if ( limit > 0 && steps > limit ) {
-                            a--;
-                            break;
-                        }
-                        if (clients[msg.sender].lastSupplyID < a) {
-                            value = clients[msg.sender].supply[clients[msg.sender].lastSupplyID];
-                        } else {
-                            value = clients[msg.sender].supply[a];
-                        }
-                        if ( globalFunds[a].supply > 0) {
-                            reward += value * globalFunds[a].reward / globalFunds[a].supply * uint256(rate) / 100;
-                        }
-                        steps++;
+                    if ( data.clientPaidUpTo <= data.roundID ) {
+                        data.clientPaidUpTo = safeAdd(data.roundID, 1);
                     }
                 }
             }
-        }
-        clients[msg.sender].lastRate = rate;
-        clients[msg.sender].paidUpTo = a-1;
-    }
-    function getProviderReward(address addr, uint256 limit) internal returns (uint256 providerReward, uint256 adminReward) {
-        /*
-            Inner function for the provider in order to collect the share from the token emission            
-            @addr               Address of the provider.
-            @limit              Quota of the check-rounds.
-            @providerReward     The reward of the provider’s address from the checked rounds.
-            @adminReward        Admin’s reward from the checked rounds.
-        */
-        uint256 reward;
-        uint256 ownReward;
-        uint256 value;
-        uint256 steps;
-        uint256 currHeight = providers[addr].currentHeight;
-        uint256 LTSID = providers[addr].data[currHeight].lastSupplyID;
-        var rate = providers[addr].data[currHeight].lastPaidRate;
-        for ( uint256 a = (providers[addr].data[currHeight].paidUpTo + 1) ; a <= currentSchellingRound ; a++ ) {
-            if (globalFunds[a].reward > 0 && globalFunds[a].supply > 0) {
-                if ( providers[addr].data[currHeight].rateHistory[a].valid ) {
-                    rate = providers[addr].data[currHeight].rateHistory[a].value;
-                }
-                if ( rate > 0 ) {
-                    if ( ( a > LTSID && rightForInterest(providers[addr].data[currHeight].supply[LTSID], providers[addr].data[currHeight].priv) || 
-                        rightForInterest(providers[addr].data[currHeight].supply[a], providers[addr].data[currHeight].priv) ) ) {
-                        if ( limit > 0 && steps > limit ) {
-                            a--;
-                            break;
-                        }
-                        if ( LTSID < a ) {
-                            value = providers[addr].data[currHeight].supply[LTSID];
+            // Checking owners reward if he is the sender or was the admin on isForRent
+            if ( data.priv && ( ( senderStatus == senderStatus_e.adminAndClient && data.isForRent ) || senderStatus == senderStatus_e.owner || senderStatus == senderStatus_e.admin ) ) {
+                if ( ! ( data.isForRent && data.ownerPaidUpTo > data.roundID ) ) {
+                    if ( data.schellingSupply > 0 && data.getInterest ) {
+                        data.tmpReward = safeMul(data.schellingReward, data.ownerSupply) / data.schellingSupply;
+                        if ( senderStatus == senderStatus_e.admin || ( ! data.isForRent ) ) {
+                            data.senderReward = safeAdd(data.senderReward, data.tmpReward);
                         } else {
-                            value = providers[addr].data[currHeight].supply[a];
+                            data.ownerReward = safeAdd(data.ownerReward, data.tmpReward);
                         }
-                        if ( globalFunds[a].supply > 0) {
-                            reward += value * globalFunds[a].reward / globalFunds[a].supply * ( 100 - uint256(rate) ) / 100;
-                            if ( providers[addr].data[currHeight].priv ) {
-                                LTSID = providers[addr].data[currHeight].lastOwnSupplyID;
-                                if ( LTSID < a ) {
-                                    value = providers[addr].data[currHeight].ownSupply[LTSID];
-                                } else {
-                                    value = providers[addr].data[currHeight].ownSupply[a];
-                                }
-                                ownReward += value * globalFunds[a].reward / globalFunds[a].supply;
+                    }
+                    if ( data.ownerPaidUpTo <= data.roundID ) {
+                        data.ownerPaidUpTo = safeAdd(data.roundID, 1);
+                    }
+                }
+            }
+            // Checking revenue from the clients if the caller was the owner or admin
+            if ( senderStatus == senderStatus_e.admin || senderStatus == senderStatus_e.adminAndClient || senderStatus == senderStatus_e.owner ) {
+                if ( ! ( data.isForRent && data.ownerPaidUpTo > data.roundID ) ) {
+                    data.setOwnerRate = true;
+                    if ( data.schellingSupply > 0 && data.rate < 100 && data.getInterest ) {
+                        data.tmpReward = safeMul(safeMul(data.schellingReward, safeSub(data.providerSupply, data.ownerSupply)) / data.schellingSupply, safeSub(100, data.rate)) / 100;
+                        if ( data.isForRent ) {
+                            data.ownerReward = safeAdd(data.ownerReward, safeMul(data.tmpReward, rentRate) / 100);
+                            data.adminReward = safeAdd(data.adminReward, safeSub(data.tmpReward, safeMul(data.tmpReward, rentRate) / 100));
+                        } else {
+                            if ( senderStatus == senderStatus_e.owner ) {
+                                data.senderReward = safeAdd(data.senderReward, data.tmpReward);
+                            } else {
+                                data.adminReward = safeAdd(data.adminReward, data.tmpReward);
                             }
                         }
-                        steps++;
+                    }
+                    if ( data.ownerPaidUpTo <= data.roundID ) {
+                        data.ownerPaidUpTo = safeAdd(data.roundID, 1);
+                    }
+                    if ( data.clientPaidUpTo <= data.roundID ) {
+                        data.clientPaidUpTo = safeAdd(data.roundID, 1);
                     }
                 }
             }
         }
-        providers[addr].data[currHeight].lastPaidRate = uint8(rate);
-        providers[addr].data[currHeight].paidUpTo = a-1;
-        if ( providers[addr].data[currHeight].isForRent ) {
-            providerReward = reward * rentRate / 100;
-            adminReward = reward - providerReward;
-            if ( providers[addr].data[currHeight].priv ) { providerReward += ownReward; }
+        // For loop END
+        
+        // Set last paidUpTo
+        _setClientPaidUpTo(client, data.clientPaidUpTo);
+        _setClientPaidUpTo(data.owner, data.ownerPaidUpTo);
+        
+        // Set last rate
+        _setClientLastPaidRate(client, data.rate);
+        if ( data.setOwnerRate ) {
+            _setClientLastPaidRate(data.owner, data.rate);
+        }
+        
+        // Increasing roundID for the next sets
+        //data.roundID = safeAdd(data.roundID, 1);
+        
+        // Set last supplies if not exists, We need save variables, becuase then we have stack to deep
+        (data.tmpReward, data.priv) = _getProviderSupply(providerUID, data.roundID);
+        if ( ! data.priv ) {
+            _setProviderSupply(providerUID, data.roundID, data.providerSupply);
+        }
+        (data.tmpReward, data.priv) = _getClientSupply(client, data.roundID);
+        if ( ! data.priv ) {
+            _setClientSupply(client, data.roundID, data.clientSupply);
+        }
+        (data.tmpReward, data.priv) = _getClientSupply(data.owner, data.roundID);
+        if ( ! data.priv ) {
+            _setClientSupply(data.owner, data.roundID, data.ownerSupply);
+        }
+    }
+    function checkForInterest(uint256 oldSupply, uint256 newSupply, bool priv) internal returns (rightForInterest_e rightForInterest) {
+        uint256 _limit;
+        if ( priv ) {
+            _limit = interestMinFunds;
+        }
+        if ( oldSupply >= _limit ) {
+            if ( newSupply >= _limit ) {
+                return rightForInterest_e.yes_yes;
+            } else {
+                return rightForInterest_e.yes_no;
+            }
         } else {
-            providerReward = reward + ownReward;
+            if ( newSupply >= _limit ) {
+                return rightForInterest_e.no_yes;
+            } else {
+                return rightForInterest_e.no_no;
+            }
         }
     }
-    function checkFloatingSupply(address providerAddress, uint256 providerHeight, bool neg, uint256 value) internal {
-        /*
-            Inner function for updating the database when some token change has happened.
-            In this case we are checking if despite the changes the provider is still entitled to the token emission. In case the legitimacy changes then the global supply should be set as well.
-            
-            @providerAddress        Provider address.
-            @providerHeight         Provider height.
-            @neg                    the change was negative or not
-            @value                  Rate of the change
-        */
-        uint256 LSID = providers[providerAddress].data[providerHeight].lastSupplyID;
-        if ( currentSchellingRound != LSID ) {
-            if ( neg ) {
-                setRightForInterest(
-                    providers[providerAddress].data[providerHeight].supply[LSID], 
-                    providers[providerAddress].data[providerHeight].supply[LSID] - value, 
-                    providers[providerAddress].data[providerHeight].priv
-                );
-                providers[providerAddress].data[providerHeight].supply[currentSchellingRound] = providers[providerAddress].data[providerHeight].supply[LSID] - value;
-            } else {
-                setRightForInterest(
-                    providers[providerAddress].data[providerHeight].supply[LSID], 
-                    providers[providerAddress].data[providerHeight].supply[LSID] + value, 
-                    providers[providerAddress].data[providerHeight].priv
-                );
-                providers[providerAddress].data[providerHeight].supply[currentSchellingRound] = providers[providerAddress].data[providerHeight].supply[LSID] + value;
-            }
-            providers[providerAddress].data[providerHeight].lastSupplyID = currentSchellingRound;
+    function appendSupplyChanges(uint256 providerUID, address client, bool neg, uint256 amount) internal {
+        // egyenleg valtozott es be kell allitani ezt mindenkinel!
+        // kliens, provider, totalsupply
+        var _priv = _getProviderPriv(providerUID);
+        var _owner = _getProviderOwner(providerUID);
+        if ( _owner == client && ( ! _priv ) ) {
+            return;
+        }
+        var _providerSupply = _getProviderSupply(providerUID);
+        var _clientSupply = _getClientSupply(client);
+        var _schellingSupply = _getSchellingRoundSupply();
+        rightForInterest_e rightForInterest;
+        if ( neg ) {
+            rightForInterest = checkForInterest(_providerSupply, safeSub(_providerSupply, amount), _priv);
         } else {
-            if ( neg ) {
-                setRightForInterest(
-                    getProviderCurrentSupply(providerAddress), 
-                    getProviderCurrentSupply(providerAddress) - value, 
-                    providers[providerAddress].data[providerHeight].priv
-                );
-                providers[providerAddress].data[providerHeight].supply[currentSchellingRound] -= value;
-            } else {
-                setRightForInterest(
-                    getProviderCurrentSupply(providerAddress), 
-                    getProviderCurrentSupply(providerAddress) + value, 
-                    providers[providerAddress].data[providerHeight].priv
-                );
-                providers[providerAddress].data[providerHeight].supply[currentSchellingRound] += value;
-            }
+            rightForInterest = checkForInterest(_providerSupply, safeAdd(_providerSupply, amount), _priv);
         }
-    }
-    function checkFloatingOwnSupply(address providerAddress, uint256 providerHeight, bool neg, uint256 value) internal {
-        /*
-            Inner function for updating the database in case token change has happened.
-            In this case we check if the provider despite the changes is still entitled to the token emission.
-            We just call this only if the private provider and it’s own capital bears emission.
-            
-            @providerAddress        Provider address.
-            @providerHeight         Provider height.
-            @neg                    Was the change negative?
-            @value                  Rate of the change.
-        */
-        uint256 LSID = providers[providerAddress].data[providerHeight].lastOwnSupplyID;
-        if ( currentSchellingRound != LSID ) {
+        if ( rightForInterest == rightForInterest_e.yes_yes ) {
             if ( neg ) {
-                setRightForInterest(
-                    providers[providerAddress].data[providerHeight].ownSupply[LSID], 
-                    providers[providerAddress].data[providerHeight].ownSupply[LSID] - value, 
-                    true
-                );
-                providers[providerAddress].data[providerHeight].ownSupply[currentSchellingRound] = providers[providerAddress].data[providerHeight].ownSupply[LSID] - value;
+                _schellingSupply = safeSub(_schellingSupply, amount);
             } else {
-                setRightForInterest(
-                    providers[providerAddress].data[providerHeight].ownSupply[LSID], 
-                    providers[providerAddress].data[providerHeight].ownSupply[LSID] + value, 
-                    true
-                );
-                providers[providerAddress].data[providerHeight].ownSupply[currentSchellingRound] = providers[providerAddress].data[providerHeight].ownSupply[LSID] + value;
+                _schellingSupply = safeAdd(_schellingSupply, amount);
             }
-            providers[providerAddress].data[providerHeight].lastOwnSupplyID = currentSchellingRound;
+        } else if ( rightForInterest == rightForInterest_e.yes_no ) {
+            _schellingSupply = safeSub(_schellingSupply, _providerSupply);
+        } else if ( rightForInterest == rightForInterest_e.no_yes ) {
+            _schellingSupply = safeAdd(_schellingSupply, safeAdd(_providerSupply, amount));
+        } else if ( rightForInterest == rightForInterest_e.no_no ) {
+            // nope
+        }
+        if ( neg ) {
+            _providerSupply = safeSub(_providerSupply, amount);
+            _clientSupply = safeSub(_clientSupply, amount);
         } else {
-            if ( neg ) {
-                setRightForInterest(
-                    getProviderCurrentSupply(providerAddress), 
-                    getProviderCurrentSupply(providerAddress) - value, 
-                    true
-                );
-                providers[providerAddress].data[providerHeight].ownSupply[currentSchellingRound] -= value;
-            } else {
-                setRightForInterest(
-                    getProviderCurrentSupply(providerAddress), 
-                    getProviderCurrentSupply(providerAddress) + value, 
-                    true
-                );
-                providers[providerAddress].data[providerHeight].ownSupply[currentSchellingRound] += value;
-            }
+            _providerSupply = safeAdd(_providerSupply, amount);
+            _clientSupply = safeAdd(_clientSupply, amount);
         }
+        // feltoltes!
+        _setProviderSupply(providerUID, _providerSupply);
+        _setSchellingRoundSupply(_schellingSupply);
+        _setClientSupply(client, _clientSupply);
     }
-    function TEMath(uint256 a, uint256 b, bool neg) internal returns (uint256) {
+    function checkCorrectRate(bool priv, uint8 rate) internal {
         /*
-            Inner function for the changes of the numbers
+            Inner function which checks if the amount of interest what is given by the provider is fits to the criteria.
             
-            @a      First number
-            @b      2nd number
-            @neg    Operation with numbers. If it is TRUE then subtraction, if it is FALSE then addition.
+            @priv       Is the provider private or not?
+            @rate       Percentage/rate of the interest
         */
-        if ( neg ) { return a-b; }
-        else { return a+b; }
+        require(( ! priv && ( rate >= publicMinRate && rate <= publicMaxRate ) ) || 
+                ( priv && ( rate >= privateMinRate && rate <= privateMaxRate ) ) );
     }
-    function transferEvent_(address addr, uint256 value, bool neg) internal {
-        /*
-            Inner function for perceiving the changes of the balance and updating the database.
-            If the address is a provider and the balance is decreasing than can not let it go under the minimum level.
-            
-            @addr       The address where the change happened.
-            @value      Rate of the change.
-            @neg        ype of the change. If it is TRUE then the balance has been decreased if it is FALSE then it has been increased.
-        */
-        if ( clients[addr].providerAddress != 0 ) {
-            checkFloatingSupply(clients[addr].providerAddress, providers[clients[addr].providerAddress].currentHeight, ! neg, value);
-            if (clients[addr].lastSupplyID != currentSchellingRound) {
-                clients[addr].supply[currentSchellingRound] = TEMath(clients[addr].supply[clients[addr].lastSupplyID], value, neg);
-                clients[addr].lastSupplyID = currentSchellingRound;
-            } else {
-                clients[addr].supply[currentSchellingRound] = TEMath(clients[addr].supply[currentSchellingRound], value, neg);
-            }
-        } else if ( providers[addr].data[providers[addr].currentHeight].valid ) {
-            var currentHeight = providers[addr].currentHeight;
-            if ( neg ) {
-                uint256 balance = getTokenBalance(addr);
-                if ( providers[addr].data[currentHeight].priv ) {
-                    require( balance-value >= minFundsForPrivate );
-                } else {
-                    require( balance-value >= minFundsForPublic );
-                }
-            }
-            if ( providers[addr].data[currentHeight].priv ) {
-                checkFloatingOwnSupply(addr, currentHeight, ! neg, value);
-            }
-        }
-    }
-    function getTokenBalance(address addr) internal returns (uint256 balance) {
+    
+    
+    
+    mapping(address => uint256) balanceOf;
+    function getTokenBalance(address addr) constant returns (uint256 balance) {
         /*
             Inner function in order to poll the token balance of the address.
             
@@ -770,9 +1274,15 @@ contract provider is module, safeMath {
             
             @balance    Balance of the address.
         */
+        
+        //hardcoded
+        return balanceOf[addr];
+        
+        /*
         var (_success, _balance) = moduleHandler(moduleHandlerAddress).balanceOf(addr);
         require( _success );
         return _balance;
+        */
     }
     function checkICO() internal returns (bool isICO) {
         /*
@@ -780,14 +1290,43 @@ contract provider is module, safeMath {
             
             @isICO      Is the ICO in proccess or not?
         */
+        
+        //hardcoded
+        return false;
+        
+        /*
         var (_success, _isICO) = moduleHandler(moduleHandlerAddress).isICO();
         require( _success );
         return _isICO;
+        */
     }
-    event EProviderOpen(address addr, uint256 height);
-    event EClientLost(address indexed client, address indexed provider, uint256 height, uint256 indexed value);
-    event ENewClient(address indexed client, address indexed provider, uint256 height, uint256 indexed value);
-    event EProviderClose(address indexed addr, uint256 height);
-    event EProviderDetailsChanged(address indexed addr, uint256 height, string website, string country, string info, uint8 rate, address admin);
-    event EReward(address indexed client, address indexed provider, uint256 clientreward, uint256 providerReward);
+    /* Constants */
+    function checkReward(uint256 providerUID, uint256 roundLimit) public constant returns (uint256 reward, uint256 round) {
+        /*
+            Polling the share from the token emission token emission for clients and for providers.
+
+            It is optionaly possible to give an address of a beneficiary for whom we can transfer the accumulated amount. In case we don’t enter any address then the amount will be transfered to the caller’s address.
+            As the interest should be checked at each schelling round in order to get the share from that so to avoid the overflow of the gas the number of the check-rounds should be limited.
+            It is possible to enter optionaly the number of the check-rounds.  If it is 0 then it is automatic.
+            
+            @beneficiary        Address of the beneficiary
+            @limit              Quota of the check-rounds.
+            @providerUID        Unique ID of the provider
+            @reward             Accumulated amount from the previous rounds.
+        */
+        var _roundLimit = roundLimit;
+        if ( _roundLimit == 0 ) { _roundLimit = _roundLimit-1; } // willfully
+        var (_data, _round) = checkReward(msg.sender, providerUID, _roundLimit);
+        if ( msg.sender == _data.admin ) {
+            return (safeAdd(_data.senderReward, _data.adminReward), _round);
+        } else {
+            return (_data.senderReward, _round);
+        }
+    }
+    /* Events */
+    event EProviderOpen(uint256 UID);
+    event EProviderClose(uint256 UID);
+    event EProviderNewDetails(uint256 UID);
+    event EJoinProvider(uint256 UID, address clientAddress);
+    event EPartProvider(uint256 UID, address clientAddress);
 }
