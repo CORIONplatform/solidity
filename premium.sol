@@ -8,7 +8,7 @@ import "./tokenDB.sol";
 import "./module.sol";
 import "./thirdPartyContract.sol";
 
-contract ptokenDB is tokenDB {}
+contract premiumDB is tokenDB {}
 
 contract premium is module, safeMath {
     /* Module callbacks */
@@ -40,7 +40,7 @@ contract premium is module, safeMath {
             @dbAddress          Address of database
         */
         require( dbAddress != 0x00 );
-        db = ptokenDB(dbAddress);
+        db = premiumDB(dbAddress);
     }
     /* Externals */
     /**
