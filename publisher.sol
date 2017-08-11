@@ -52,7 +52,6 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
     }
     /* Variables */
     uint256 public minAnnouncementDelay = 40320;
-    uint256 public minAnnouncementDelayOnICO = 17280;
     uint8 public oppositeRate = 33;
     uint256 public announcementsLength;
     mapping(uint256 => announcements_s) public announcements;
@@ -89,11 +88,7 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
         announcementsLength++;
         announcements[announcementsLength].Type = Type;
         announcements[announcementsLength].start = block.number;
-        if ( checkICO() ) {
-            announcements[announcementsLength].end = block.number + minAnnouncementDelayOnICO;
-        } else {
-            announcements[announcementsLength].end = block.number + minAnnouncementDelay;
-        }
+        announcements[announcementsLength].end = block.number + minAnnouncementDelay;
         announcements[announcementsLength].open = true;
         announcements[announcementsLength].announcement = Announcement;
         announcements[announcementsLength].link = Link;
@@ -199,16 +194,6 @@ contract publisher is announcementTypes, module, safeMath, moduleMultiOwner {
         announcements[id].end = block.number;
         announcements[id].open = false;
         EInvalidateAnnouncement(id);
-    }
-    /* Internals */
-    function checkICO() internal returns (bool isICO) {
-        /*
-            Inner function to check the ICO status.
-            @bool       Is the ICO in proccess or not?
-        */
-        var (_success, _isICO) = moduleHandler(moduleHandlerAddress).isICO();
-        require( _success );
-        return _isICO;
     }
     /* Constants */
     function Announcements(uint256 id) public constant returns (announcementType Type, uint256 Start, uint256 End,
