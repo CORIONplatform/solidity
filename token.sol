@@ -7,14 +7,12 @@ import "./safeMath.sol";
 import "./module.sol";
 import "./moduleHandler.sol";
 import "./tokenDB.sol";
-import "./ico.sol";
 import "./thirdPartyContract.sol";
 
 contract token is safeMath, module {
     /* module callbacks */
     function connectModule() external onlyForModuleHandler returns (bool success) {
         super._connectModule();
-        isICO = ico(icoAddr).isICO();
         return true;
     }
     function replaceModule(address addr) onlyForModuleHandler external returns (bool success) {
@@ -40,56 +38,24 @@ contract token is safeMath, module {
     string  public symbol = "COR";
     uint8   public decimals = 6;
     tokenDB public db;
-    address public icoAddr;
     uint256 public transactionFeeRate   = 20;
     uint256 public transactionFeeRateM  = 1e3;
     uint256 public transactionFeeMin    =   20000;
     uint256 public transactionFeeMax    = 5000000;
     uint256 public transactionFeeBurn   = 80;
-    bool    public isICO;
-    mapping(address => bool) public genesis;
     /* Constructor */
-    function token(bool forReplace, address moduleHandlerAddr, address dbAddr,
-        address icoContractAddr, address[] genesisAddr, uint256[] genesisValue) payable module(moduleHandlerAddr) {
+    function token(address moduleHandlerAddr, address dbAddr) module(moduleHandlerAddr) {
         /*
-            Installation function
-            When icoContractAddr is defined, 0.2 ether has to be attached  as many times as many genesis addresses are given
+            Deploy function
             
             @forReplace                 This address will be replaced with the old one or not.
             @moduleHandlerAddr          Modulhandler's address
             @dbAddr                     Address of database
-            @icoContractAddr            Address of ICO contract
-            @genesisAddr                Array of Genesis addresses
-            @genesisValue               Array of balance of genesis addresses
         */
         require( dbAddr != 0x00 );
-        require( icoContractAddr != 0x00 );
         db = tokenDB(dbAddr);
-        icoAddr = icoContractAddr;
-        if ( ! forReplace ) {
-            require( db.replaceOwner(this) );
-            assert( genesisAddr.length == genesisValue.length );
-            require( this.balance >= safeMul(genesisAddr.length, 0.2 ether) );
-            for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
-                genesis[genesisAddr[a]] = true;
-                require( db.increase(genesisAddr[a], genesisValue[a]) );
-                if ( ! genesisAddr[a].send(0.2 ether) ) {}
-                Mint(genesisAddr[a], genesisValue[a]);
-            }
-        }
-        require( msg.sender.send(this.balance) );
     }
     /* Externals */
-    function closeIco() external returns (bool success) {
-        /*
-            ICO finished. It can be called only by ICO contract
-            
-            @success    Was the Function successful?
-        */
-        require( msg.sender == icoAddr );
-        isICO = false;
-        return true;
-    }
     /**
      * @notice `msg.sender` approves `spender` to spend `amount` tokens on its behalf.
      * @param spender The address of the account able to transfer the tokens
@@ -281,7 +247,7 @@ contract token is safeMath, module {
             
             @success    Was the Function successful?
         */
-        require( super.isModuleHandler(msg.sender) || msg.sender == icoAddr );
+        require( super.isModuleHandler(msg.sender) );
         _mint(owner, value);
         return true;
     }
@@ -336,14 +302,9 @@ contract token is safeMath, module {
             require( db.balanceOf(from) >= safeAdd(amount, _fee) );
         }
         require( from != 0x00 && to != 0x00 && to != 0xa636a97578d26a3b76b060bbc18226d954cf3757 );
-        require( ( ! isICO) || genesis[from] );
         require( db.decrease(from, amount) );
         require( db.increase(to, amount) );
         if ( fee ) { _processTransactionFee(from, amount); }
-        if ( isICO ) {
-            require( ico(icoAddr).setInterestDB(from, db.balanceOf(from)) );
-            require( ico(icoAddr).setInterestDB(to, db.balanceOf(to)) );
-        }
         require( moduleHandler(moduleHandlerAddress).broadcastTransfer(from, to, amount) );
     }
     function _processTransactionFee(address owner, uint256 value) internal {
@@ -354,7 +315,6 @@ contract token is safeMath, module {
             @owner      From who
             @value      Quantity to calculate the fee
         */
-        if ( isICO ) { return; }
         var (_success, _fee) = getTransactionFee(value);
         require( _success );
         uint256 _forBurn = safeMul(_fee, transactionFeeBurn) / 100;
@@ -383,9 +343,6 @@ contract token is safeMath, module {
         */
         require( db.increase(owner, value) );
         require( moduleHandler(moduleHandlerAddress).broadcastTransfer(0x00, owner, value) );
-        if ( isICO ) {
-            require( ico(icoAddr).setInterestDB(owner, db.balanceOf(owner)) );
-        }
         Mint(owner, value);
     }
     function _approve(address spender, uint256 amount, uint256 nonce) internal {
@@ -455,7 +412,6 @@ contract token is safeMath, module {
             @success    Was the Function successful?
             @fee        Amount of Transaction fee
         */
-        if ( isICO ) { return (true, 0); }
         fee = safeMul(value, transactionFeeRate) / transactionFeeRateM / 100;
         if ( fee > transactionFeeMax ) { fee = transactionFeeMax; }
         else if ( fee < transactionFeeMin ) { fee = transactionFeeMin; }
