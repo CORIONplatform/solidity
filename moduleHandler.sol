@@ -9,9 +9,8 @@ import "./multiOwner.sol";
 import "./publisher.sol";
 import "./token.sol";
 import "./provider.sol";
-import "./schelling.sol";
+import "./dummySchelling.sol";
 import "./premium.sol";
-import "./ico.sol";
 
 contract abstractModule is announcementTypes {
     function connectModule() external returns (bool success) {}
@@ -374,17 +373,6 @@ contract moduleHandler is multiOwner, announcementTypes {
         require( _success && _found );
         return (true, token(modules[_id].addr).totalSupply());
     }
-    function isICO() public constant returns (bool success, bool ico) {
-        /*
-            Query of ICO state
-            
-            @ico        Is ICO in progress?
-            @success    Was the function successfull?
-        */
-        var (_success, _found, _id) = getModuleIDByName('Token');
-        require( _success && _found );
-        return (true, token(modules[_id].addr).isICO());
-    }
     function getCurrentSchellingRoundID() public constant returns (bool success, uint256 round) {
         /*
             Query of number of the actual Schelling round.
@@ -394,7 +382,9 @@ contract moduleHandler is multiOwner, announcementTypes {
         */
         var (_success, _found, _id) = getModuleIDByName('Schelling');
         require( _success && _found );
-        return (true, schelling(modules[_id].addr).getCurrentSchellingRoundID());
+        ( _success, _id ) = schelling(modules[_id].addr).getCurrentSchellingRoundID();
+        require( _success );
+        return (true, _id);
     }
     function getModuleAddressByName(string name) public constant returns( bool success, bool found, address addr ) {
         /*
