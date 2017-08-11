@@ -7,6 +7,16 @@ import "./provider.sol";
 import "./safeMath.sol";
 import "./owned.sol";
 
+contract providerCommonVars {
+    enum senderStatus_e {
+        none,
+        client,
+        adminAndClient,
+        admin,
+        owner
+    }
+}
+
 contract providerDB is providerCommonVars, owned, safeMath {
     struct supply_s {
         uint256 amount;
