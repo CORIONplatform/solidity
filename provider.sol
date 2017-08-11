@@ -10,16 +10,6 @@ import "./announcementTypes.sol";
 import "./owned.sol";
 import "./providerDB.sol";
 
-contract providerCommonVars {
-    enum senderStatus_e {
-        none,
-        client,
-        adminAndClient,
-        admin,
-        owner
-    }
-}
-
 contract provider is module, safeMath, providerCommonVars {
     /* Module functions */
     function replaceModule(address addr) onlyForModuleHandler external returns (bool success) {
