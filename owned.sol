@@ -1,7 +1,7 @@
 /*
     owned.sol
 */
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.15;
 
 contract owned {
     address public owner;
