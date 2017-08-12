@@ -49,7 +49,7 @@ contract schelling is module, owned, safeMath {
     uint256 public currentSchellingRoundID = 1;
     uint256 public currentSchellingRoundStart = safeAdd(block.number, roundBlockDelay);
     uint256 public rewards = 0;
-    address constant foundation = 0xbed261d8da9f13dfd10bf568ea22d353c15737da;
+    address public escrow = 0xd3fc97709b5b37c67d3d702f7a5fe122d863abbd;
     /* Constructor */
     function schelling(address moduleHandlerAddr) module(moduleHandlerAddr) {}
     /* Externals */
@@ -63,7 +63,7 @@ contract schelling is module, owned, safeMath {
             _reward = safeMul(getTotalSupply(), interestRate) / interestRateM / 100;
         }
         require( moduleHandler(moduleHandlerAddress).broadcastSchellingRound(currentSchellingRoundID, _reward) );
-        require( moduleHandler(moduleHandlerAddress).transfer(address(this), foundation, rewards, false) );
+        require( moduleHandler(moduleHandlerAddress).transfer(address(this), escrow, rewards, false) );
         delete rewards;
         ENewSchellingRound(currentSchellingRoundID, _reward);
     }
