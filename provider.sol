@@ -341,9 +341,7 @@ contract provider is module, safeMath, providerCommonVars {
         newProvider_s memory _newProvider;
         _newProvider.balance = getTokenBalance(msg.sender);
         checkCorrectRate(priv, rate);
-        if ( admin == msg.sender ) {
-            admin = 0x00;
-        }
+        require( admin != msg.sender );
         require( ( ! isForRent ) || ( isForRent && admin != 0x00) );
         require( _getClientProviderUID(msg.sender) == 0x00 );
         require( ( priv && ( _newProvider.balance >= minFundsForPrivate )) || ( ! priv && ( _newProvider.balance >= minFundsForPublic )) );
