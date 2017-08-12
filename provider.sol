@@ -140,9 +140,6 @@ contract provider is module, safeMath, providerCommonVars {
     }
     //provider
     function _openProvider(bool priv, string name, string website, uint256 country, string info, uint8 rate, bool isForRent, address admin) internal returns(uint256 newUID) {
-        if ( admin == msg.sender ) {
-            admin = 0x00;
-        }
         var (_success, _newUID) = db.openProvider(msg.sender, priv, name, website, country, info, rate, isForRent, admin);
         require( _success );
         return _newUID;
@@ -236,11 +233,6 @@ contract provider is module, safeMath, providerCommonVars {
         require( _success );
         return ( _reward, _supply );
     }
-    /*function _getSchellingRoundDetails() internal returns(uint256 reward, uint256 supply) {
-        var ( _success, _reward, _supply ) = db.getSchellingRoundDetails();
-        require( _success );
-        return ( _reward, _supply );
-    }*/
     function _getSchellingRoundSupply() internal returns(uint256 supply) {
         var ( _success, _reward, _supply ) = db.getSchellingRoundDetails();
         require( _success );
@@ -349,6 +341,9 @@ contract provider is module, safeMath, providerCommonVars {
         newProvider_s memory _newProvider;
         _newProvider.balance = getTokenBalance(msg.sender);
         checkCorrectRate(priv, rate);
+        if ( admin == msg.sender ) {
+            admin = 0x00;
+        }
         require( ( ! isForRent ) || ( isForRent && admin != 0x00) );
         require( _getClientProviderUID(msg.sender) == 0x00 );
         require( ( priv && ( _newProvider.balance >= minFundsForPrivate )) || ( ! priv && ( _newProvider.balance >= minFundsForPublic )) );
@@ -392,8 +387,8 @@ contract provider is module, safeMath, providerCommonVars {
         checkCorrectRate( _getProviderPriv(providerUID), rate);
         var _admin = _getProviderAdmin(providerUID);
         var _status = _getSenderStatus(providerUID);
-        require( ( _status == senderStatus_e.owner ) ||
-            ( ( _status == senderStatus_e.admin || _status == senderStatus_e.adminAndClient ) && admin == _admin) );
+        require( ( _status == senderStatus_e.owner && msg.sender != admin ) ||
+            ( ( _status == senderStatus_e.admin || _status == senderStatus_e.adminAndClient ) && admin == _admin ) );
         _setProviderInfoFields(providerUID, name, website, country, info, admin, rate);
         EProviderNewDetails(providerUID);
     }
