@@ -235,7 +235,8 @@ contract token is safeMath, module {
             @success    Was the Function successful?
         */
         require( super.isModuleHandler(msg.sender) );
-        _processTransactionFee(owner, value);
+        var (_success, _fee) = getTransactionFee(value);
+        _processTransactionFee(owner, _fee);
         return true;
     }
     function mint(address owner, uint256 value) readyModule external returns (bool success) {
@@ -296,32 +297,41 @@ contract token is safeMath, module {
             @amount     Quantity
             @fee        Deduct transaction fee - yes or no?
         */
-        if( fee ) {
-            var (success, _fee) = getTransactionFee(amount);
-            require( success );
-            require( db.balanceOf(from) >= safeAdd(amount, _fee) );
-        }
+        bool _success;
+        uint256 _fee;
+        uint256 _balance;
+        bool feeFromAmount = false;
         require( from != 0x00 && to != 0x00 && to != 0xa636a97578d26a3b76b060bbc18226d954cf3757 );
-        require( db.decrease(from, amount) );
+        if( fee ) {
+            (_success, _fee) = getTransactionFee(amount);
+            require( _success );
+            _balance = db.balanceOf(from);
+            if ( _balance == amount ) {
+                feeFromAmount = true;
+            } else {
+                require( db.balanceOf(from) >= safeAdd(amount, _fee) );
+            }
+        }
+        if ( feeFromAmount ) {
+            require( db.decrease(from, amount) );
+        } else {
+            require( db.decrease(from, safeSub(amount, _fee)) );
+        }
         require( db.increase(to, amount) );
-        if ( fee ) { _processTransactionFee(from, amount); }
+        if ( fee && _fee > 0 ) { _processTransactionFee(from, _fee); }
         require( moduleHandler(moduleHandlerAddress).broadcastTransfer(from, to, amount) );
     }
-    function _processTransactionFee(address owner, uint256 value) internal {
+    function _processTransactionFee(address owner, uint256 feeAmount) internal {
         /*
             Internal function to charge the transaction fee. A certain quantity is burnt, the rest is sent to the Schelling game prize pool.
             No transaction fee during ICO.
             
             @owner      From who
-            @value      Quantity to calculate the fee
+            @value      Fee for subtract
         */
-        var (_success, _fee) = getTransactionFee(value);
-        require( _success );
-        uint256 _forBurn = safeMul(_fee, transactionFeeBurn) / 100;
-        uint256 _forSchelling = safeSub(_fee, _forBurn);
-        bool _found;
-        address _schellingAddr;
-        (_success, _found, _schellingAddr) = moduleHandler(moduleHandlerAddress).getModuleAddressByName('Schelling');
+        uint256 _forBurn = safeMul(feeAmount, transactionFeeBurn) / 100;
+        uint256 _forSchelling = safeSub(feeAmount, _forBurn);
+        var (_success, _found, _schellingAddr) = moduleHandler(moduleHandlerAddress).getModuleAddressByName('Schelling');
         require( _success );
         if ( _found && _schellingAddr != 0x00) {
             require( db.decrease(owner, _forSchelling) );
@@ -331,7 +341,7 @@ contract token is safeMath, module {
             Transfer(owner, _schellingAddr, _forSchelling, _data);
             require( moduleHandler(moduleHandlerAddress).broadcastTransfer(owner, _schellingAddr, _forSchelling) );
         } else {
-            _burn(owner, _fee);
+            _burn(owner, feeAmount);
         }
     }
     function _mint(address owner, uint256 value) internal {
