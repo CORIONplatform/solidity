@@ -45,7 +45,6 @@ contract moduleHandler is multiOwner, announcementTypes {
             This module can be called only once and only by the owner, if every single module and its database are already put on the blockchain.
             If forReplace is true, than the ModuleHandler will be replaced. Before the publishing of its replace, the new contract must be already on the blockchain.
             
-            @foundation     Address of foundation.
             @forReplace     Is it for replace or not. If not, it will be connected to the module.
             @Token          address of token.
             @Publisher      address of publisher.
