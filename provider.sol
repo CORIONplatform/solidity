@@ -298,7 +298,7 @@ contract provider is module, safeMath, providerCommonVars {
     uint8   public privateMinRate       = 0;
     uint8   public publicMaxRate        = 70;
     uint8   public privateMaxRate       = 100;
-    uint256 public gasProtectMaxRounds  = 240;
+    uint256 public gasProtectMaxRounds  = 200;
     uint256 public interestMinFunds     = 25e9;
     uint8   public rentRate             = 20;
     providerDB public db;
@@ -724,7 +724,7 @@ contract provider is module, safeMath, providerCommonVars {
         require(( ! priv && ( rate >= publicMinRate && rate <= publicMaxRate ) ) || 
                 ( priv && ( rate >= privateMinRate && rate <= privateMaxRate ) ) );
     }
-    function getTokenBalance(address addr) constant returns (uint256 balance) {
+    function getTokenBalance(address addr) internal returns (uint256 balance) {
         /*
             Inner function in order to poll the token balance of the address.
             
