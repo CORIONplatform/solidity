@@ -4,6 +4,7 @@
 pragma solidity ^0.4.15;
 
 import "./module.sol";
+import "./owned.sol";
 import "./safeMath.sol";
 import "./moduleHandler.sol";
 
