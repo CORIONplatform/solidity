@@ -254,14 +254,6 @@ contract provider is module, safeMath, providerCommonVars {
         transferFrom,
         transferTo
     }
-    /*
-    enum rightForInterest_e {
-        yes_yes,    //0
-        yes_no,     //1
-        no_yes,     //2
-        no_no       //3
-    }
-    */
     /* Structures */
     struct checkReward_s {
         address owner;
