@@ -247,12 +247,6 @@ contract provider is module, safeMath, providerCommonVars {
         require( _success );
     }*/
     /* Enumerations */
-    enum rightForInterest_e {
-        yes_yes,    //0
-        yes_no,     //1
-        no_yes,     //2
-        no_no       //3
-    }
     enum supplyChangeType_e {
         joinToProvider,
         partFromProvider,
@@ -260,6 +254,14 @@ contract provider is module, safeMath, providerCommonVars {
         transferFrom,
         transferTo
     }
+    /*
+    enum rightForInterest_e {
+        yes_yes,    //0
+        yes_no,     //1
+        no_yes,     //2
+        no_no       //3
+    }
+    */
     /* Structures */
     struct checkReward_s {
         address owner;
@@ -637,27 +639,7 @@ contract provider is module, safeMath, providerCommonVars {
         //save last provider supply
         _setProviderSupply(providerUID, data.roundID, data.providerSupply);
     }
-    function checkForInterest(uint256 oldSupply, uint256 newSupply, bool priv) internal returns (rightForInterest_e rightForInterest) {
-        uint256 _limit;
-        if ( priv ) {
-            _limit = interestMinFunds;
-        }
-        if ( oldSupply >= _limit ) {
-            if ( newSupply >= _limit ) {
-                return rightForInterest_e.yes_yes;
-            } else {
-                return rightForInterest_e.yes_no;
-            }
-        } else {
-            if ( newSupply >= _limit ) {
-                return rightForInterest_e.no_yes;
-            } else {
-                return rightForInterest_e.no_no;
-            }
-        }
-    }
     function appendSupplyChanges(address client, supplyChangeType_e supplyChangeType, uint256 amount) internal {
-        // egyenleg valtozott es be kell allitani ezt mindenkinel!
         uint256 _clientSupply;
         var providerUID = _getClientProviderUID(client);
         if ( providerUID == 0 || _getProviderClosed(providerUID) > 0) { return; }
@@ -665,42 +647,26 @@ contract provider is module, safeMath, providerCommonVars {
         var _owner = _getProviderOwner(providerUID);
         // The public provider owners supply are not calculated in the provider supply, but we need set the last supply ID's
         if ( _owner != client || ( _owner == client && _priv ) || supplyChangeType == supplyChangeType_e.closeProvider ) {
-            bool _add = ( supplyChangeType == supplyChangeType_e.joinToProvider || supplyChangeType == supplyChangeType_e.transferTo );
             var _providerSupply = _getProviderSupply(providerUID);
+            
+            uint256 _providerSupplyNew;
+            if ( supplyChangeType == supplyChangeType_e.joinToProvider || supplyChangeType == supplyChangeType_e.transferTo ) {
+                _providerSupplyNew = safeAdd(_providerSupply, amount);
+            } else if ( supplyChangeType == supplyChangeType_e.transferFrom || supplyChangeType == supplyChangeType_e.partFromProvider ) {
+                _providerSupplyNew = safeSub(_providerSupply, amount);
+            }
+            if ( supplyChangeType != supplyChangeType_e.closeProvider ) { 
+                _setProviderSupply(providerUID, _providerSupplyNew);
+            }
+            
             var _schellingSupply = _getSchellingRoundSupply();
-            rightForInterest_e rightForInterest;
-            if ( supplyChangeType == supplyChangeType_e.closeProvider ) {
-                rightForInterest = checkForInterest(_providerSupply, 0, _priv);
-                if ( rightForInterest == rightForInterest_e.yes_no || rightForInterest == rightForInterest_e.yes_yes ) {
-                    _schellingSupply = safeSub(_schellingSupply, _providerSupply);
-                }
-            } else {
-                if ( _add ) {
-                    rightForInterest = checkForInterest(_providerSupply, safeAdd(_providerSupply, amount), _priv);
-                } else {
-                    rightForInterest = checkForInterest(_providerSupply, safeSub(_providerSupply, amount), _priv);
-                }
-                if ( rightForInterest == rightForInterest_e.yes_yes ) {
-                    if ( _add ) {
-                        _schellingSupply = safeAdd(_schellingSupply, amount);
-                    } else {
-                        _schellingSupply = safeSub(_schellingSupply, amount);
-                    }
-                } else if ( rightForInterest == rightForInterest_e.yes_no ) {
-                    _schellingSupply = safeSub(_schellingSupply, _providerSupply);
-                } else if ( rightForInterest == rightForInterest_e.no_yes ) {
-                    _schellingSupply = safeAdd(_schellingSupply, safeAdd(_providerSupply, amount));
-                }// else if ( rightForInterest == rightForInterest_e.no_no ) {
-                    // nope
-                //}
-                
-                if ( _add ) {
-                    _providerSupply = safeAdd(_providerSupply, amount);
-                } else {
-                    _providerSupply = safeSub(_providerSupply, amount);
-                }
-                
-                _setProviderSupply(providerUID, _providerSupply);
+            // check if the provider used to get interest - if so, remove it from the schelling supply
+            if (checkForInterest(_providerSupply, _priv)) {
+                _schellingSupply = safeSub(_schellingSupply, _providerSupply);
+            }
+            // check if the provider should get interest now
+            if (checkForInterest(_providerSupplyNew, _priv)) {
+                _schellingSupply = safeAdd(_schellingSupply, _providerSupplyNew);
             }
             _setSchellingRoundSupply(_schellingSupply);
         }
@@ -713,6 +679,9 @@ contract provider is module, safeMath, providerCommonVars {
         if ( supplyChangeType == supplyChangeType_e.transferFrom && client == _owner ) {
             require( ( _priv && _clientSupply >= minFundsForPrivate ) ||( ( ! _priv ) && _clientSupply >= minFundsForPublic ));
         }
+    }
+    function checkForInterest(uint256 supply, bool priv) internal returns (bool) {
+        return ( ! priv && supply > 0) || ( priv && interestMinFunds <= supply );
     }
     function checkCorrectRate(bool priv, uint8 rate) internal {
         /*
