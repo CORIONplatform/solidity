@@ -306,10 +306,9 @@ contract token is safeMath, module {
             require( _success );
             if ( db.balanceOf(from) == amount ) {
                 _amount = safeSub(amount, _fee);
-            } else {
-                require( db.balanceOf(from) >= safeAdd(amount, _fee) );
             }
         }
+        require( db.balanceOf(from) >= safeAdd(_amount, _fee) );
         require( db.decrease(from, _amount) );
         require( db.increase(to, _amount) );
         if ( fee && _fee > 0 ) { _processTransactionFee(from, _fee); }
