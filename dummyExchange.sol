@@ -12,15 +12,17 @@ contract exchange is owned, safeMath {
     uint256 public exchangeRate;
     uint256 public exchangeRateM = 1e3;
     uint256 public maxReceiveEther = 2e17; // 0.2 ETC
+    uint256 public exchangeRateShift = 120; // +20%
     address public exchangeRateManager;
     address public foundation = 0xbed261d8da9f13dfd10bf568ea22d353c15737da;
     address public CORAddress;
     /* Constructor */
-    function exchange(address _CORAddress, address _exchangeRateManager, uint256 _exchangeRate) payable {
-        require( _CORAddress != 0x00 && _exchangeRateManager != 0x00 && _exchangeRate > 0);
+    function exchange(address _CORAddress, address _exchangeRateManager, uint256 _exchangeRate, uint256 _exchangeRateShift) payable {
+        require( _CORAddress != 0x00 && _exchangeRateManager != 0x00 && _exchangeRate > 0 );
         CORAddress = _CORAddress;
         exchangeRateManager = _exchangeRateManager;
         exchangeRate = _exchangeRate;
+        exchangeRateShift = _exchangeRateShift;
         owner = msg.sender;
     }
     /* Fallback */
@@ -41,12 +43,15 @@ contract exchange is owned, safeMath {
         return ( true, safeSub(amount, _amount) );
     }
     function getEther() external {
-        require( isOwner() );
         require( foundation.send(this.balance) );
     }  
     function getCOR() external {
+        require( token(CORAddress).transfer(foundation, token(CORAddress).balanceOf(address(this)) ) );
+    }
+    function destroy() external {
         require( isOwner() );
         require( token(CORAddress).transfer(foundation, token(CORAddress).balanceOf(address(this)) ) );
+        suicide( foundation );
     }
     function setCORAddress(address newCORAddress) external {
         require( isOwner() );
@@ -58,9 +63,9 @@ contract exchange is owned, safeMath {
     }
     /* Constants */
     function calcCORtoETC(uint256 cor) public constant returns(uint256 etc) {
-        return safeMul(safeMul(cor, 1e12), exchangeRateM) / exchangeRate ; 
+        return safeMul(safeMul(cor, 1e12), exchangeRateM) / ( safeMul(exchangeRate, exchangeRateShift) / 100 ) ; 
     }
     function calcETCtoCOR(uint256 etc) public constant returns(uint256 cor) {
-        return safeMul(exchangeRate, etc) / 1e12 / exchangeRateM;
+        return safeMul(safeMul(exchangeRate, exchangeRateShift) / 100, etc) / 1e12 / exchangeRateM;
     }
 }
