@@ -9,7 +9,7 @@ import "./multiOwner.sol";
 import "./publisher.sol";
 import "./token.sol";
 import "./provider.sol";
-import "./dummySchelling.sol";
+import "./schellingLight.sol";
 import "./premium.sol";
 
 contract abstractModule is announcementTypes {
