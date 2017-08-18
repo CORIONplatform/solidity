@@ -109,6 +109,9 @@ contract multiOwner is safeMath {
     function validDoHash(bytes32 doHash) public constant returns (bool valid) {
         return doDB[doHash].length > 0;
     }
+    function hashAddress(address addr) public constant returns (bytes32 hash) {
+        return sha3(addr);
+    }
     /* Privates */
     function _addOwner(address addr) private {
         if ( owners[addr] ) { return; }
