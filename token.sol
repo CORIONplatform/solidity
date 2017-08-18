@@ -299,27 +299,21 @@ contract token is safeMath, module {
         */
         bool _success;
         uint256 _fee;
-        uint256 _balance;
-        bool feeFromAmount = false;
+        uint256 _amount = amount;
         require( from != 0x00 && to != 0x00 && to != 0xa636a97578d26a3b76b060bbc18226d954cf3757 );
         if( fee ) {
             (_success, _fee) = getTransactionFee(amount);
             require( _success );
-            _balance = db.balanceOf(from);
-            if ( _balance == amount ) {
-                feeFromAmount = true;
+            if ( db.balanceOf(from) == amount ) {
+                _amount = safeSub(amount, _fee);
             } else {
                 require( db.balanceOf(from) >= safeAdd(amount, _fee) );
             }
         }
-        if ( feeFromAmount ) {
-            require( db.decrease(from, amount) );
-        } else {
-            require( db.decrease(from, safeSub(amount, _fee)) );
-        }
-        require( db.increase(to, amount) );
+        require( db.decrease(from, _amount) );
+        require( db.increase(to, _amount) );
         if ( fee && _fee > 0 ) { _processTransactionFee(from, _fee); }
-        require( moduleHandler(moduleHandlerAddress).broadcastTransfer(from, to, amount) );
+        require( moduleHandler(moduleHandlerAddress).broadcastTransfer(from, to, _amount) );
     }
     function _processTransactionFee(address owner, uint256 feeAmount) internal {
         /*
