@@ -42,6 +42,7 @@ contract exchange is owned, safeMath {
         require( sender.call.value(_reward)() );
         return ( true, safeSub(amount, _amount) );
     }
+    function approvedToken(address addr, uint256 amount, bytes data) external returns (bool) { revert(); }
     function getEther() external {
         require( foundation.send(this.balance) );
     }  
