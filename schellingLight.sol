@@ -1,5 +1,5 @@
 /*
-    dummySchelling.sol
+    schellingLight.sol
 */
 pragma solidity ^0.4.15;
 
