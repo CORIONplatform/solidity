@@ -246,14 +246,6 @@ contract provider is module, safeMath, providerCommonVars {
         var ( _success ) = db.setSchellingRoundReward(reward);
         require( _success );
     }*/
-    /* Enumerations */
-    enum supplyChangeType_e {
-        joinToProvider,
-        partFromProvider,
-        closeProvider,
-        transferFrom,
-        transferTo
-    }
     /* Structures */
     struct checkReward_s {
         address owner;
