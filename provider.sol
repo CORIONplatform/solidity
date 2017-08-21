@@ -27,8 +27,8 @@ contract provider is module, safeMath, providerCommonVars {
             @value      amount
             @bool       Was the function successful?
         */
-        appendSupplyChanges(from, supplyChangeType_e.transferFrom, value);
-        appendSupplyChanges(to, supplyChangeType_e.transferTo, value);
+        appendSupplyChanges(from, false, value);
+        appendSupplyChanges(to, true, value);
         return true;
     }
     function newSchellingRoundEvent(uint256 roundID, uint256 reward) onlyForModuleHandler external returns (bool success) {
@@ -338,27 +338,29 @@ contract provider is module, safeMath, providerCommonVars {
         require( admin != msg.sender );
         require( ( ! isForRent ) || ( isForRent && admin != 0x00) );
         require( _getClientProviderUID(msg.sender) == 0x00 );
-        require( ( priv && ( _newProvider.balance >= minFundsForPrivate )) || ( ! priv && ( _newProvider.balance >= minFundsForPublic )) );
+        checkProviderOwnerSupply(_newProvider.balance, priv);
         _newProvider.newUID = _openProvider(priv, name, website, country, info, rate, isForRent, admin);
         _joinToProvider(_newProvider.newUID, msg.sender);
         if ( priv ) {
-            appendSupplyChanges(msg.sender, supplyChangeType_e.joinToProvider, _newProvider.balance);
+            appendSupplyChanges(msg.sender, true, _newProvider.balance);
         }
         EProviderOpen(_newProvider.newUID);
     }
     function closeProvider() readyModule external {
-        /*
-            Closing and inactivate the provider.
-            It is only possible to close that active provider which is owned by the sender itself after calling the whole share of the emission.
-            Whom were connected to the provider those clients will have to disconnect after they’ve called their share of emission which was not called before.
-        */
-        var providerUID = _getClientProviderUID(msg.sender);
-        require( providerUID > 0 );
-        require( _getProviderOwner(providerUID) == msg.sender );
-        require( _isClientPaidUp(msg.sender) );
-        appendSupplyChanges(msg.sender, supplyChangeType_e.closeProvider, 0);
-        _closeProvider(msg.sender);
-        EProviderClose(providerUID);
+    	/*
+    		Closing and inactivate the provider.
+    		It is only possible to close that active provider which is owned by the sender itself after calling the whole share of the emission.
+    		Who were connected to the provider those clients will have to disconnect after they’ve called their share of emission which was not called before.
+    	*/
+    	var providerUID = _getClientProviderUID(msg.sender);
+    	require( providerUID > 0 );
+    	require( _getProviderOwner(providerUID) == msg.sender );
+    	require( _isClientPaidUp(msg.sender) );
+    	var _providerSupply = _getProviderSupply(providerUID);
+    	var _priv = _getProviderPriv(providerUID);
+    	appendSchellingSupplyChanges(_providerSupply, 0, _priv);
+    	_closeProvider(msg.sender);
+    	EProviderClose(providerUID);
     }
     function setProviderDetails(uint256 providerUID, string name, string website, uint256 country, string info, uint8 rate, address admin) readyModule external {
         /*
@@ -402,7 +404,7 @@ contract provider is module, safeMath, providerCommonVars {
         require( moduleHandler(moduleHandlerAddress).processTransactionFee(msg.sender, _supply) );
         _supply = getTokenBalance(msg.sender);
         _joinToProvider(providerUID, msg.sender);
-        appendSupplyChanges(msg.sender, supplyChangeType_e.joinToProvider, _supply);
+        appendSupplyChanges(msg.sender, true, _supply);
         EJoinProvider(providerUID, msg.sender);
     }
     function partProvider() readyModule external {
@@ -419,7 +421,7 @@ contract provider is module, safeMath, providerCommonVars {
         var _supply = getTokenBalance(msg.sender);
         // ONLY IF THE PROVIDER ARE OPEN
         if ( _getProviderClosed(providerUID) == 0 ) {
-            appendSupplyChanges(msg.sender, supplyChangeType_e.partFromProvider, _supply);
+            appendSupplyChanges(msg.sender, false, _supply);
         }
         _partFromProvider(providerUID, msg.sender);
         EPartProvider(providerUID, msg.sender);
@@ -631,46 +633,49 @@ contract provider is module, safeMath, providerCommonVars {
         //save last provider supply
         _setProviderSupply(providerUID, data.roundID, data.providerSupply);
     }
-    function appendSupplyChanges(address client, supplyChangeType_e supplyChangeType, uint256 amount) internal {
-        uint256 _clientSupply;
-        var providerUID = _getClientProviderUID(client);
-        if ( providerUID == 0 || _getProviderClosed(providerUID) > 0) { return; }
-        var _priv = _getProviderPriv(providerUID);
-        var _owner = _getProviderOwner(providerUID);
-        // The public provider owners supply are not calculated in the provider supply, but we need set the last supply ID's
-        if ( _owner != client || ( _owner == client && _priv ) || supplyChangeType == supplyChangeType_e.closeProvider ) {
-            var _providerSupply = _getProviderSupply(providerUID);
-            
-            uint256 _providerSupplyNew;
-            if ( supplyChangeType == supplyChangeType_e.joinToProvider || supplyChangeType == supplyChangeType_e.transferTo ) {
-                _providerSupplyNew = safeAdd(_providerSupply, amount);
-            } else if ( supplyChangeType == supplyChangeType_e.transferFrom || supplyChangeType == supplyChangeType_e.partFromProvider ) {
-                _providerSupplyNew = safeSub(_providerSupply, amount);
-            }
-            if ( supplyChangeType != supplyChangeType_e.closeProvider ) { 
-                _setProviderSupply(providerUID, _providerSupplyNew);
-            }
-            
-            var _schellingSupply = _getSchellingRoundSupply();
-            // check if the provider used to get interest - if so, remove it from the schelling supply
-            if (checkForInterest(_providerSupply, _priv)) {
-                _schellingSupply = safeSub(_schellingSupply, _providerSupply);
-            }
-            // check if the provider should get interest now
-            if (checkForInterest(_providerSupplyNew, _priv)) {
-                _schellingSupply = safeAdd(_schellingSupply, _providerSupplyNew);
-            }
-            _setSchellingRoundSupply(_schellingSupply);
-        }
-        // Client supply changes
-        _clientSupply = getTokenBalance(client);
-        if ( supplyChangeType != supplyChangeType_e.closeProvider && ( client != _owner || ( client == _owner && _priv ) ) ) {
-            _setClientSupply(client, _clientSupply);
-        }
-        // check owner balance for the provider limits
-        if ( supplyChangeType == supplyChangeType_e.transferFrom && client == _owner ) {
-            require( ( _priv && _clientSupply >= minFundsForPrivate ) ||( ( ! _priv ) && _clientSupply >= minFundsForPublic ));
-        }
+    function appendSupplyChanges(address client, bool add, uint256 amount) internal {
+    	uint256 _clientSupply;
+    	var providerUID = _getClientProviderUID(client);
+    	if ( providerUID == 0 || _getProviderClosed(providerUID) > 0) { return; }
+    	var _priv = _getProviderPriv(providerUID);
+    	var _owner = _getProviderOwner(providerUID);
+    	if ( _owner != client || ( _owner == client && _priv )) {
+    		var _providerSupply = _getProviderSupply(providerUID);
+    		
+    		uint256 _newProviderSupply;
+    		if ( add ) {
+    			_newProviderSupply = safeAdd(_providerSupply, amount);
+    		} else {
+    			_newProviderSupply = safeSub(_providerSupply, amount);
+    		}
+    		_setProviderSupply(providerUID, _newProviderSupply);
+    		
+    		appendSchellingSupplyChanges(_providerSupply, _newProviderSupply, _priv);
+    	}
+    	// Client supply changes
+    	_clientSupply = getTokenBalance(client);
+    	if ( client != _owner || ( client == _owner && _priv ) )  {
+    		_setClientSupply(client, _clientSupply);
+    	}
+    	// check owner balance for the provider limits
+    	if ( !add && client == _owner ) {
+    	    checkProviderOwnerSupply(_clientSupply, _priv);
+    	}
+    }
+    function checkProviderOwnerSupply(uint256 balance, bool priv) internal {
+        require( ( priv && ( balance >= minFundsForPrivate )) || ( ! priv && ( balance >= minFundsForPublic )) );
+    }
+    function appendSchellingSupplyChanges(uint256 providerSupply, uint256 newProviderSupply, bool priv) internal {
+    	var _schellingSupply = _getSchellingRoundSupply();
+    	// check if the provider used to get interest - if so, remove it from the schelling supply
+    	if (checkForInterest(providerSupply, priv)) {
+    		_schellingSupply = safeSub(_schellingSupply, providerSupply);
+    	}
+    	// check if the provider should get interest now
+    	if (checkForInterest(newProviderSupply, priv)) {
+    		_schellingSupply = safeAdd(_schellingSupply, newProviderSupply);
+    	}
+    	_setSchellingRoundSupply(_schellingSupply);
     }
     function checkForInterest(uint256 supply, bool priv) internal returns (bool) {
         return ( ! priv && supply > 0) || ( priv && interestMinFunds <= supply );
@@ -699,18 +704,6 @@ contract provider is module, safeMath, providerCommonVars {
     }
     /* Constants */
     function checkReward(uint256 providerUID, uint256 roundLimit) public constant returns (uint256 senderReward, uint256 adminReward, uint256 ownerReward, uint256 round) {
-        /*
-            Polling the share from the token emission token emission for clients and for providers.
-
-            It is optionaly possible to give an address of a beneficiary for whom we can transfer the accumulated amount. In case we don’t enter any address then the amount will be transfered to the caller’s address.
-            As the interest should be checked at each schelling round in order to get the share from that so to avoid the overflow of the gas the number of the check rounds should be limited.
-            It is possible to enter optionaly the number of the check rounds.  If it is 0 then it is automatic.
-            
-            @beneficiary        Address of the beneficiary
-            @limit              Quota of the check rounds.
-            @providerUID        Unique ID of the provider
-            @reward             Accumulated amount from the previous rounds.
-        */
         var _roundLimit = roundLimit;
         if ( _roundLimit == 0 ) { _roundLimit = _roundLimit-1; } // willfully
         var (_data, _round) = checkReward(msg.sender, providerUID, _roundLimit);
