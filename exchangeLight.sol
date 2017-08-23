@@ -34,7 +34,7 @@ contract exchange is owned, safeMath {
         require( sender.balance < maxReceiveEther );
         var _max = calcETCtoCOR(maxReceiveEther);
         uint256 _amount = amount;
-        if ( _max > _amount ) {
+        if ( _amount > _max ) {
             _amount = _max;
         }
         var _reward = calcCORtoETC(_amount);
