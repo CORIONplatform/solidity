@@ -82,8 +82,8 @@ contract moduleHandler is multiOwner, announcementTypes {
         if ( callCallback ) {
             require( abstractModule(modules[_id].addr).replaceModule(addr) );
         }
-        require( abstractModule(addr).connectModule() );
         modules[_id].addr = addr;
+        require( abstractModule(addr).connectModule() );
         return true;
     }
     function callReplaceCallback(string moduleName, address newModule) external returns (bool success) {
