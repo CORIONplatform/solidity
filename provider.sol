@@ -71,6 +71,7 @@ contract provider is module, safeMath, providerCommonVars {
         require( _success );
         return _paid;
     }
+    /*
     function _getClientSupply(address clientAddress) internal returns(uint256 amount) {
         var ( _success, _amount ) = db.getClientSupply(clientAddress);
         require( _success );
@@ -81,6 +82,7 @@ contract provider is module, safeMath, providerCommonVars {
         require( _success );
         return ( _amount, _valid );
     }
+    */
     function _getClientSupply(address clientAddress, uint256 schellingRound, uint256 oldAmount) internal returns(uint256 amount) {
         var ( _success, _amount, _valid ) = db.getClientSupply(clientAddress, schellingRound);
         require( _success );
@@ -187,11 +189,13 @@ contract provider is module, safeMath, providerCommonVars {
         require( _success );
         return _supply;
     }
+    /*
     function _getProviderSupply(uint256 providerUID, uint256 schellingRound) internal returns(uint256 supply, bool valid) {
         var ( _success, _supply, _valid ) = db.getProviderSupply(providerUID, schellingRound);
         require( _success );
         return ( _supply, _valid );
     }
+    */
     function _getProviderSupply(uint256 providerUID, uint256 schellingRound, uint256 oldAmount) internal returns(uint256 supply) {
         var ( _success, _supply, _valid ) = db.getProviderSupply(providerUID, schellingRound);
         require( _success );
@@ -339,20 +343,20 @@ contract provider is module, safeMath, providerCommonVars {
         EProviderOpen(_newProvider.newUID);
     }
     function closeProvider() readyModule external {
-    	/*
-    		Closing and inactivate the provider.
-    		It is only possible to close that active provider which is owned by the sender itself after calling the whole share of the emission.
-    		Who were connected to the provider those clients will have to disconnect after they’ve called their share of emission which was not called before.
-    	*/
-    	var providerUID = _getClientProviderUID(msg.sender);
-    	require( providerUID > 0 );
-    	require( _getProviderOwner(providerUID) == msg.sender );
-    	require( _isClientPaidUp(msg.sender) );
-    	var _providerSupply = _getProviderSupply(providerUID);
-    	var _priv = _getProviderPriv(providerUID);
-    	appendSchellingSupplyChanges(_providerSupply, 0, _priv);
-    	_closeProvider(msg.sender);
-    	EProviderClose(providerUID);
+        /*
+            Closing and inactivate the provider.
+            It is only possible to close that active provider which is owned by the sender itself after calling the whole share of the emission.
+            Who were connected to the provider those clients will have to disconnect after they’ve called their share of emission which was not called before.
+        */
+        var providerUID = _getClientProviderUID(msg.sender);
+        require( providerUID > 0 );
+        require( _getProviderOwner(providerUID) == msg.sender );
+        require( _isClientPaidUp(msg.sender) );
+        var _providerSupply = _getProviderSupply(providerUID);
+        var _priv = _getProviderPriv(providerUID);
+        appendSchellingSupplyChanges(_providerSupply, 0, _priv);
+        _closeProvider(msg.sender);
+        EProviderClose(providerUID);
     }
     function setProviderDetails(uint256 providerUID, string name, string website, uint256 country, string info, uint8 rate, address admin) readyModule external {
         /*
@@ -626,48 +630,48 @@ contract provider is module, safeMath, providerCommonVars {
         _setProviderSupply(providerUID, data.roundID, data.providerSupply);
     }
     function appendSupplyChanges(address client, bool add, uint256 amount) internal {
-    	uint256 _clientSupply;
-    	var providerUID = _getClientProviderUID(client);
-    	if ( providerUID == 0 || _getProviderClosed(providerUID) > 0) { return; }
-    	var _priv = _getProviderPriv(providerUID);
-    	var _owner = _getProviderOwner(providerUID);
-    	if ( _owner != client || ( _owner == client && _priv )) {
-    		var _providerSupply = _getProviderSupply(providerUID);
-    		
-    		uint256 _newProviderSupply;
-    		if ( add ) {
-    			_newProviderSupply = safeAdd(_providerSupply, amount);
-    		} else {
-    			_newProviderSupply = safeSub(_providerSupply, amount);
-    		}
-    		_setProviderSupply(providerUID, _newProviderSupply);
-    		
-    		appendSchellingSupplyChanges(_providerSupply, _newProviderSupply, _priv);
-    	}
-    	// Client supply changes
-    	_clientSupply = getTokenBalance(client);
-    	if ( client != _owner || ( client == _owner && _priv ) )  {
-    		_setClientSupply(client, _clientSupply);
-    	}
-    	// check owner balance for the provider limits
-    	if ( !add && client == _owner ) {
-    	    checkProviderOwnerSupply(_clientSupply, _priv);
-    	}
+        uint256 _clientSupply;
+        var providerUID = _getClientProviderUID(client);
+        if ( providerUID == 0 || _getProviderClosed(providerUID) > 0) { return; }
+        var _priv = _getProviderPriv(providerUID);
+        var _owner = _getProviderOwner(providerUID);
+        if ( _owner != client || ( _owner == client && _priv )) {
+            var _providerSupply = _getProviderSupply(providerUID);
+            
+            uint256 _newProviderSupply;
+            if ( add ) {
+                _newProviderSupply = safeAdd(_providerSupply, amount);
+            } else {
+                _newProviderSupply = safeSub(_providerSupply, amount);
+            }
+            _setProviderSupply(providerUID, _newProviderSupply);
+            
+            appendSchellingSupplyChanges(_providerSupply, _newProviderSupply, _priv);
+        }
+        // Client supply changes
+        _clientSupply = getTokenBalance(client);
+        if ( client != _owner || ( client == _owner && _priv ) )  {
+            _setClientSupply(client, _clientSupply);
+        }
+        // check owner balance for the provider limits
+        if ( !add && client == _owner ) {
+            checkProviderOwnerSupply(_clientSupply, _priv);
+        }
     }
     function checkProviderOwnerSupply(uint256 balance, bool priv) internal {
         require( ( priv && ( balance >= minFundsForPrivate )) || ( ! priv && ( balance >= minFundsForPublic )) );
     }
     function appendSchellingSupplyChanges(uint256 providerSupply, uint256 newProviderSupply, bool priv) internal {
-    	var _schellingSupply = _getSchellingRoundSupply();
-    	// check if the provider used to get interest - if so, remove it from the schelling supply
-    	if (checkForInterest(providerSupply, priv)) {
-    		_schellingSupply = safeSub(_schellingSupply, providerSupply);
-    	}
-    	// check if the provider should get interest now
-    	if (checkForInterest(newProviderSupply, priv)) {
-    		_schellingSupply = safeAdd(_schellingSupply, newProviderSupply);
-    	}
-    	_setSchellingRoundSupply(_schellingSupply);
+        var _schellingSupply = _getSchellingRoundSupply();
+        // check if the provider used to get interest - if so, remove it from the schelling supply
+        if (checkForInterest(providerSupply, priv)) {
+            _schellingSupply = safeSub(_schellingSupply, providerSupply);
+        }
+        // check if the provider should get interest now
+        if (checkForInterest(newProviderSupply, priv)) {
+            _schellingSupply = safeAdd(_schellingSupply, newProviderSupply);
+        }
+        _setSchellingRoundSupply(_schellingSupply);
     }
     function checkForInterest(uint256 supply, bool priv) internal returns (bool) {
         return ( ! priv && supply > 0) || ( priv && interestMinFunds <= supply );
