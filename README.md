@@ -7,7 +7,7 @@ Website:
 https://www.corion.io
 
 Email:
-contact@corion.io
+support@corion.io
 
 Bitcoin Talk:
 https://bitcointalk.org/index.php?topic=1920823.0
