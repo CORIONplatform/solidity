@@ -9,6 +9,8 @@ import "./multiOwner.sol";
 import "./publisher.sol";
 import "./token.sol";
 import "./provider.sol";
+import "./providerDB.sol";
+import "./providerRewardLib.sol";
 import "./schellingLight.sol";
 import "./premium.sol";
 
