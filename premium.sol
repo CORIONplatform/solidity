@@ -176,16 +176,17 @@ contract premium is module, safeMath {
         Transfer(msg.sender, to, amount, extraData);
         return true;
     }
-    function mint(address owner, uint256 value) readyModule external returns (bool success) {
+    function burn(uint256 value) readyModule external returns (bool success) {
         /*
-            Generating tokens.
+            Burning tokens.
             
             @owner      Address
             @value      Amount.
             
             @success    Was the Function successful?
         */
-        return false;
+        _burn(msg.sender, value);
+        return true;
     }
     /* Internals */
     function transferToContract(address from, address to, uint256 amount, bytes extraData) internal {
@@ -219,15 +220,15 @@ contract premium is module, safeMath {
         require( db.decrease(from, amount) );
         require( db.increase(to, amount) );
     }
-    function _mint(address owner, uint256 value) internal {
+    function _burn(address owner, uint256 value) internal {
         /*
-            Inner function to create a token.
+            Inner function to burn a token.
             
-            @owner     Address of crediting the token.
+            @owner     Address for burning the token.
             @value     Amount
         */
-        require( db.increase(owner, value) );
-        Mint(owner, value);
+        require( db.decrease(owner, value) );
+        Burn(owner, value);
     }
     function _approve(address spender, uint256 amount, uint256 nonce) internal {
         /*
@@ -295,7 +296,6 @@ contract premium is module, safeMath {
     }
     /* Events */
     event AllowanceUsed(address indexed spender, address indexed owner, uint256 indexed value);
-    event Mint(address indexed addr, uint256 indexed value);
     event Burn(address indexed addr, uint256 indexed value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
     event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes _extraData);
