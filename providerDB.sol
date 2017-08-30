@@ -18,6 +18,7 @@ contract providerCommonVars {
 }
 
 contract providerDB is providerCommonVars, owned, safeMath {
+    /* Structures */
     struct supply_s {
         uint256 amount;
         bool valid;
@@ -54,11 +55,17 @@ contract providerDB is providerCommonVars, owned, safeMath {
         uint8 lastPaidRate;
         uint256 paidUpTo;
     }
+    /* Variables */
     mapping(uint256 => provider_s) providers;
     mapping(uint256 => schellingRoundDetails_s) public schellingRoundDetails;
     mapping(address => client_s) public clients;
+    address public debug_owner = msg.sender;
     uint256 public providerCounter;
     uint256 public currentSchellingRound = 1;
+    function debug_changeOwner(address newOwner) {
+        require( msg.sender == debug_owner );
+        owner = newOwner;
+    }
     //base providerCounter functions
     function getProviderCounter() constant returns(bool success, uint256 value) {
         return (
@@ -68,13 +75,10 @@ contract providerDB is providerCommonVars, owned, safeMath {
     }
     //combined client functions
     function isClientPaidUp(address clientAddress) constant returns(bool success, bool paid) {
-        // ha teljesen ki van fizetve az user
         var providerUID = clients[clientAddress].providerUID;
         return (
             true,
-            // ha be van zarva a provider, de ki is van fizetve
             ( ( providers[providerUID].closed > 0 && clients[clientAddress].paidUpTo == safeSub(providers[providerUID].closed, 1) ) ||
-            // ha meg nincs bezarva a provider, de eddig ki van fizetve
             clients[clientAddress].paidUpTo == currentSchellingRound )
         );
     }
