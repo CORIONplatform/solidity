@@ -133,7 +133,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
             require( block.number < debugModeUntil );
-            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name, callCallback))) ) {
+            if ( ! insertAndCheckDo(calcDoHash("dropModule", sha3(name, callCallback))) ) {
                 return true;
             }
         }
