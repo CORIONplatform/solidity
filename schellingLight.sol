@@ -52,7 +52,9 @@ contract schelling is module, owned, safeMath {
     uint256 public rewards = 0;
     address public escrow = 0xd3fc97709b5b37c67d3d702f7a5fe122d863abbd;
     /* Constructor */
-    function schelling(address moduleHandlerAddr) module(moduleHandlerAddr) {}
+    function schelling(address moduleHandlerAddr) module(moduleHandlerAddr) {
+        owner = 0xa22dd0bb010e9536832e95f4fe8a2d740f9f2799;
+    }
     /* Externals */
     function newSchellingRound(bool release) external {
         require( isOwner() );
