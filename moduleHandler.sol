@@ -1,7 +1,7 @@
 /*
     moduleHandler.sol
 */
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.15;
 
 import "./module.sol";
 import "./announcementTypes.sol";
@@ -9,9 +9,10 @@ import "./multiOwner.sol";
 import "./publisher.sol";
 import "./token.sol";
 import "./provider.sol";
-import "./schelling.sol";
+import "./providerDB.sol";
+import "./providerRewardLib.sol";
+import "./schellingLight.sol";
 import "./premium.sol";
-import "./ico.sol";
 
 contract abstractModule is announcementTypes {
     function connectModule() external returns (bool success) {}
@@ -46,7 +47,6 @@ contract moduleHandler is multiOwner, announcementTypes {
             This module can be called only once and only by the owner, if every single module and its database are already put on the blockchain.
             If forReplace is true, than the ModuleHandler will be replaced. Before the publishing of its replace, the new contract must be already on the blockchain.
             
-            @foundation     Address of foundation.
             @forReplace     Is it for replace or not. If not, it will be connected to the module.
             @Token          address of token.
             @Publisher      address of publisher.
@@ -84,8 +84,8 @@ contract moduleHandler is multiOwner, announcementTypes {
         if ( callCallback ) {
             require( abstractModule(modules[_id].addr).replaceModule(addr) );
         }
-        require( abstractModule(addr).connectModule() );
         modules[_id].addr = addr;
+        require( abstractModule(addr).connectModule() );
         return true;
     }
     function callReplaceCallback(string moduleName, address newModule) external returns (bool success) {
@@ -133,7 +133,7 @@ contract moduleHandler is multiOwner, announcementTypes {
         require( _success );
         if ( ! ( _found && modules[_id].name == sha3('Publisher') )) {
             require( block.number < debugModeUntil );
-            if ( ! insertAndCheckDo(calcDoHash("replaceModule", sha3(name, callCallback))) ) {
+            if ( ! insertAndCheckDo(calcDoHash("dropModule", sha3(name, callCallback))) ) {
                 return true;
             }
         }
@@ -374,17 +374,6 @@ contract moduleHandler is multiOwner, announcementTypes {
         require( _success && _found );
         return (true, token(modules[_id].addr).totalSupply());
     }
-    function isICO() public constant returns (bool success, bool ico) {
-        /*
-            Query of ICO state
-            
-            @ico        Is ICO in progress?
-            @success    Was the function successfull?
-        */
-        var (_success, _found, _id) = getModuleIDByName('Token');
-        require( _success && _found );
-        return (true, token(modules[_id].addr).isICO());
-    }
     function getCurrentSchellingRoundID() public constant returns (bool success, uint256 round) {
         /*
             Query of number of the actual Schelling round.
@@ -394,7 +383,9 @@ contract moduleHandler is multiOwner, announcementTypes {
         */
         var (_success, _found, _id) = getModuleIDByName('Schelling');
         require( _success && _found );
-        return (true, schelling(modules[_id].addr).getCurrentSchellingRoundID());
+        ( _success, _id ) = schelling(modules[_id].addr).getCurrentSchellingRoundID();
+        require( _success );
+        return (true, _id);
     }
     function getModuleAddressByName(string name) public constant returns( bool success, bool found, address addr ) {
         /*

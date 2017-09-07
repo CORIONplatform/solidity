@@ -1,7 +1,7 @@
 /*
     safeMath.sol
 */
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.15;
 
 contract safeMath {
     function safeAdd(uint256 a, uint256 b) internal returns(uint256) {
@@ -16,7 +16,7 @@ contract safeMath {
         }
         return a - b;
     }
-    function safeMul(uint256 a, uint256 b) returns (uint256) {
+    function safeMul(uint256 a, uint256 b) internal returns (uint256) {
         uint256 c = a * b;
         assert(a == 0 || c / a == b);
         return c;

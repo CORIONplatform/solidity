@@ -1,21 +1,19 @@
 /*
     premium.sol
 */
-pragma solidity ^0.4.11;
+pragma solidity ^0.4.15;
 
 import "./safeMath.sol";
 import "./tokenDB.sol";
 import "./module.sol";
-import "./ico.sol";
 import "./thirdPartyContract.sol";
 
-contract ptokenDB is tokenDB {}
+contract premiumDB is tokenDB {}
 
 contract premium is module, safeMath {
     /* Module callbacks */
     function connectModule() external onlyForModuleHandler returns (bool success) {
         super._connectModule();
-        isICO = ico(icoAddr).isICO();
         return true;
     }
     function replaceModule(address addr) external onlyForModuleHandler returns (bool success) {
@@ -31,48 +29,20 @@ contract premium is module, safeMath {
     string  public name = "Corion Premium";
     string  public symbol = "CORP";
     uint8   public decimals = 0;
-    address public icoAddr;
     tokenDB public db;
-    bool    public  isICO;
-    mapping(address => bool) public genesis;
     /* Constructor */
-    function premium(bool forReplace, address moduleHandlerAddr, address dbAddress, address icoContractAddr,
-        address[] genesisAddr, uint256[] genesisValue) module(moduleHandlerAddr) {
+    function premium(address moduleHandlerAddr, address dbAddress) module(moduleHandlerAddr) {
         /*
             Setup function.
             If an ICOaddress is defined then the balance of the genesis addresses will be set as well.
             
-            @forReplace         This address will be replaced with the old one or not.
             @moduleHandlerAddr  Modulhandler’s address
             @dbAddress          Address of database
-            @icoContractAddr    Address of ico contract.
-            @genesisAddr        Array of the genesis addresses.
-            @genesisValue       Array of the balance of the genesis addresses
         */
         require( dbAddress != 0x00 );
-        icoAddr = icoContractAddr;
-        db = ptokenDB(dbAddress);
-        if ( ! forReplace ) {
-            require( db.replaceOwner(this) );
-            assert( genesisAddr.length == genesisValue.length );
-            for ( uint256 a=0 ; a<genesisAddr.length ; a++ ) {
-                genesis[genesisAddr[a]] = true;
-                require( db.increase(genesisAddr[a], genesisValue[a]) );
-                Mint(genesisAddr[a], genesisValue[a]);
-            }
-        }
+        db = premiumDB(dbAddress);
     }
     /* Externals */
-    function closeIco() external returns (bool success) {
-        /*
-            Finishing the ICO. Can be invited only by an ICO contract.
-            
-            @success    If the function was successful.
-        */
-        require( icoAddr == msg.sender );
-        isICO = false;
-        return true;
-    }
     /**
      * @notice `msg.sender` approves `spender` to spend `amount` tokens on its behalf.
      * @param spender The address of the account able to transfer the tokens
@@ -206,17 +176,16 @@ contract premium is module, safeMath {
         Transfer(msg.sender, to, amount, extraData);
         return true;
     }
-    function mint(address owner, uint256 value) readyModule external returns (bool success) {
+    function burn(uint256 value) readyModule external returns (bool success) {
         /*
-            Generating tokens. It can be called only by ICO contract.
+            Burning tokens.
             
             @owner      Address
             @value      Amount.
             
             @success    Was the Function successful?
         */
-        require( msg.sender == icoAddr && isICO );
-        _mint(owner, value);
+        _burn(msg.sender, value);
         return true;
     }
     /* Internals */
@@ -248,19 +217,18 @@ contract premium is module, safeMath {
             @amount    Amount
         */
         require( from != 0x00 && to != 0x00 && to != 0xa636a97578d26a3b76b060bbc18226d954cf3757 );
-        require( ( ! isICO) || genesis[from] );
         require( db.decrease(from, amount) );
         require( db.increase(to, amount) );
     }
-    function _mint(address owner, uint256 value) internal {
+    function _burn(address owner, uint256 value) internal {
         /*
-            Inner function to create a token.
+            Inner function to burn a token.
             
-            @owner     Address of crediting the token.
+            @owner     Address for burning the token.
             @value     Amount
         */
-        require( db.increase(owner, value) );
-        Mint(owner, value);
+        require( db.decrease(owner, value) );
+        Burn(owner, value);
     }
     function _approve(address spender, uint256 amount, uint256 nonce) internal {
         /*
@@ -328,7 +296,6 @@ contract premium is module, safeMath {
     }
     /* Events */
     event AllowanceUsed(address indexed spender, address indexed owner, uint256 indexed value);
-    event Mint(address indexed addr, uint256 indexed value);
     event Burn(address indexed addr, uint256 indexed value);
     event Approval(address indexed _owner, address indexed _spender, uint256 _value);
     event Transfer(address indexed _from, address indexed _to, uint256 _value, bytes _extraData);
