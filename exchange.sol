@@ -282,12 +282,12 @@ contract exchange is owned, safeMath {
         deleteOrder(orderID);
         EOrderCancelled(orderID, msg.sender);
     }
-    function emergency_payout(address to) external {
+    function emergency_payout(address tokenAddr, address to) external {
         require( isOwner() );
         require( disabled );
-        var _balance = token(CORAddress).balanceOf(address(this));
+        var _balance = token(tokenAddr).balanceOf(address(this));
         if ( _balance > 0 ) {
-            token(CORAddress).transfer(to, _balance);
+            token(tokenAddr).transfer(to, _balance);
         }
         to.send(this.balance);
     }
