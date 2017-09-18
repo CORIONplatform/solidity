@@ -42,9 +42,9 @@ contract exchange is owned, safeMath {
     /* Enumerations */
     enum confTypes { fee, feeM, orderUnit, rateStep, tokenAddr, foundationAddr }
     /* Constructor */
-    function exchange(address _token, uint256 counterStart) {
+    function exchange(address corionAddress, uint256 counterStart) {
         owner = msg.sender;
-        CORAddress = _token;
+        CORAddress = corionAddress;
         orderCounter = counterStart;
     }
     /* Callback */
@@ -233,7 +233,11 @@ contract exchange is owned, safeMath {
             balances[msg.sender].t = safeSub(balances[msg.sender].t, amount);
             var (_success, _fee) = token(CORAddress).getTransactionFee(amount);
             require( _success );
-            require( token(CORAddress).transfer(msg.sender, safeSub(amount, _fee)) );
+            if ( _fee > 0 ) {
+                require( token(CORAddress).transfer(msg.sender, safeSub(amount, _fee)) );
+            } else {
+                require( token(CORAddress).transfer(msg.sender, amount) );
+            }
             EPayOut(msg.sender, amount, false);
         }
     }
@@ -277,6 +281,15 @@ contract exchange is owned, safeMath {
         }
         deleteOrder(orderID);
         EOrderCancelled(orderID, msg.sender);
+    }
+    function emergency_payout(address to) external {
+        require( isOwner() );
+        require( disabled );
+        var _balance = token(CORAddress).balanceOf(address(this));
+        if ( _balance > 0 ) {
+            token(CORAddress).transfer(to, _balance);
+        }
+        to.send(this.balance);
     }
     /* Internals */
     function normaliseRate(uint256 rate) internal returns (uint256 nRate) {
