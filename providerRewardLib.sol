@@ -8,7 +8,6 @@ import "./safeMath.sol";
 import "./module.sol";
 import "./providerDB.sol";
 
-
 contract providerRewardLib is module, safeMath, providerCommonVars {
     /* Provider database calls */
     // client
@@ -309,14 +308,11 @@ contract providerRewardLib is module, safeMath, providerCommonVars {
                 data.ownerSupply = _getClientSupply(data.owner, data.roundID, data.ownerSupply);
             }
             // Check, that the Provider has right for getting interest for the current checking round
-            data.getInterest = ( ! data.priv ) || ( data.priv && interestMinFunds <= data.providerSupply );
-            if ( data.getInterest ) {
-            } else {
-            }
+            data.getInterest = (( ! data.priv ) || ( data.priv && interestMinFunds <= data.providerSupply ) && data.providerSupply > 0 && data.schellingReward > 0 && data.schellingSupply > 0);
             // Checking client reward if he is the sender
             if ( ( senderStatus == senderStatus_e.client || senderStatus == senderStatus_e.adminAndClient ) && data.clientPaidUpTo <= data.roundID ) {
                 // Check for schelling reward, rate (we can not mul with zero) and if the provider get interest or not
-                if ( data.schellingReward > 0 && data.schellingSupply > 0 && data.rate > 0 && data.getInterest ) {
+                if ( data.rate > 0 && data.getInterest ) {
                     data.senderReward = safeAdd(data.senderReward, safeMul(safeMul(data.schellingReward, data.clientSupply) / data.schellingSupply, data.rate) / 100);
                 }
                 if ( data.clientPaidUpTo <= data.roundID ) {
@@ -328,22 +324,19 @@ contract providerRewardLib is module, safeMath, providerCommonVars {
                 if ( data.ownerPaidUpTo <= data.roundID && data.getInterest ) {
                     // Checking owners reward if he is the sender or was the admin on isForRent
                     if ( data.priv ) {
-                        // PaidUpTo check, need be priv and the calles is not client
-                        // Check for schelling reward
-                        if ( data.schellingReward > 0 && data.schellingSupply > 0 ) {
-                            // If the provider isForRent, then the admin can calculate owner's reward, but we send that for the owner
-                            // If the provider is not for rent, then the admin can receive owners reward
-                            data.tmpReward = safeMul(data.schellingReward, data.ownerSupply) / data.schellingSupply;
-                            if ( data.isForRent && senderStatus != senderStatus_e.owner) {
-                                data.ownerReward = safeAdd(data.ownerReward, data.tmpReward);
-                            } else {
-                                data.senderReward = safeAdd(data.senderReward, data.tmpReward);
-                            }
+                        // PaidUpTo check, need be priv and the caller is not client
+                        // If the provider isForRent, then the admin can calculate owner's reward, but we send that for the owner
+                        // If the provider is not for rent, then the admin can receive owners reward
+                        data.tmpReward = safeMul(data.schellingReward, data.ownerSupply) / data.schellingSupply;
+                        if ( data.isForRent && senderStatus != senderStatus_e.owner) {
+                            data.ownerReward = safeAdd(data.ownerReward, data.tmpReward);
+                        } else {
+                            data.senderReward = safeAdd(data.senderReward, data.tmpReward);
                         }
                     }
                     // Checking revenue from the clients if the caller was the owner or admin
                     // Check for schelling reward, rate (we can not mul with zero)
-                    if ( data.schellingReward > 0 && data.schellingSupply > 0 && data.rate < 100 ) {
+                    if ( data.rate < 100 ) {
                         // calculating into temp variable
                         if ( data.priv ) {
                             data.tmpReward = safeSub(data.providerSupply, data.ownerSupply);
