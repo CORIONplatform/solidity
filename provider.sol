@@ -1,7 +1,7 @@
 /*
     provider.sol
 */
-pragma solidity ^0.4.15;
+pragma solidity ^0.4.16;
 
 import "./module.sol";
 import "./moduleHandler.sol";
@@ -176,7 +176,7 @@ contract provider is module, safeMath, providerCommonVars {
         db = providerDB(dbAddr);
         rewardLibAddress = rewardLibAddr;
         require( providerRewardLib(rewardLibAddress).ownSign() == sha3("providerRewardLib") );
-        if ( forReplace ) {
+        if ( ! forReplace ) {
             require( db.replaceOwner(this) );
         }
     }
