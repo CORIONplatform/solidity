@@ -215,7 +215,6 @@ contract providerRewardLib is module, safeMath, providerCommonVars {
         var _owner = _getProviderOwner(providerUID);
         if ( _owner != client || ( _owner == client && _priv )) {
             var _providerSupply = _getProviderSupply(providerUID);
-            
             uint256 _newProviderSupply;
             if ( add ) {
                 _newProviderSupply = safeAdd(_providerSupply, amount);
@@ -235,6 +234,7 @@ contract providerRewardLib is module, safeMath, providerCommonVars {
         if ( !add && client == _owner ) {
             checkProviderOwnerSupply(_clientSupply, _priv);
         }
+        EProviderNewDetails(providerUID);
     }
     function appendSchellingSupplyChanges(uint256 providerSupply, uint256 newProviderSupply, bool priv) external {
         _appendSchellingSupplyChanges(providerSupply, newProviderSupply, priv);
@@ -418,4 +418,11 @@ contract providerRewardLib is module, safeMath, providerCommonVars {
         var (_data, _round) = checkReward(msg.sender, providerUID, _roundLimit);
         return (_data.senderReward, _data.adminReward, _data.ownerReward, _round);
     }
+    /* Events */
+    event EProviderOpen(uint256 UID);
+    event EProviderClose(uint256 UID);
+    event EProviderNewDetails(uint256 UID);
+    event EJoinProvider(uint256 UID, address clientAddress);
+    event EPartProvider(uint256 UID, address clientAddress);
+    event EInviteStatus(uint256 UID, address clientAddress, bool status);
 }
