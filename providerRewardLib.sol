@@ -308,7 +308,7 @@ contract providerRewardLib is module, safeMath, providerCommonVars {
                 data.ownerSupply = _getClientSupply(data.owner, data.roundID, data.ownerSupply);
             }
             // Check, that the Provider has right for getting interest for the current checking round
-            data.getInterest = (( ! data.priv ) || ( data.priv && interestMinFunds <= data.providerSupply ) && data.providerSupply > 0 && data.schellingReward > 0 && data.schellingSupply > 0);
+            data.getInterest = ((( ! data.priv ) || ( data.priv && interestMinFunds <= data.providerSupply ) ) && data.providerSupply > 0 && data.schellingReward > 0 && data.schellingSupply > 0);
             // Checking client reward if he is the sender
             if ( ( senderStatus == senderStatus_e.client || senderStatus == senderStatus_e.adminAndClient ) && data.clientPaidUpTo <= data.roundID ) {
                 // Check for schelling reward, rate (we can not mul with zero) and if the provider get interest or not
