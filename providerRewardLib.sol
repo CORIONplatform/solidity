@@ -215,7 +215,6 @@ contract providerRewardLib is module, safeMath, providerCommonVars {
         var _owner = _getProviderOwner(providerUID);
         if ( _owner != client || ( _owner == client && _priv )) {
             var _providerSupply = _getProviderSupply(providerUID);
-            
             uint256 _newProviderSupply;
             if ( add ) {
                 _newProviderSupply = safeAdd(_providerSupply, amount);
@@ -235,6 +234,7 @@ contract providerRewardLib is module, safeMath, providerCommonVars {
         if ( !add && client == _owner ) {
             checkProviderOwnerSupply(_clientSupply, _priv);
         }
+        EProviderNewDetails(providerUID);
     }
     function appendSchellingSupplyChanges(uint256 providerSupply, uint256 newProviderSupply, bool priv) external {
         _appendSchellingSupplyChanges(providerSupply, newProviderSupply, priv);
@@ -308,7 +308,7 @@ contract providerRewardLib is module, safeMath, providerCommonVars {
                 data.ownerSupply = _getClientSupply(data.owner, data.roundID, data.ownerSupply);
             }
             // Check, that the Provider has right for getting interest for the current checking round
-            data.getInterest = (( ! data.priv ) || ( data.priv && interestMinFunds <= data.providerSupply ) && data.providerSupply > 0 && data.schellingReward > 0 && data.schellingSupply > 0);
+            data.getInterest = ((( ! data.priv ) || ( data.priv && interestMinFunds <= data.providerSupply ) ) && data.providerSupply > 0 && data.schellingReward > 0 && data.schellingSupply > 0);
             // Checking client reward if he is the sender
             if ( ( senderStatus == senderStatus_e.client || senderStatus == senderStatus_e.adminAndClient ) && data.clientPaidUpTo <= data.roundID ) {
                 // Check for schelling reward, rate (we can not mul with zero) and if the provider get interest or not
@@ -418,4 +418,11 @@ contract providerRewardLib is module, safeMath, providerCommonVars {
         var (_data, _round) = checkReward(msg.sender, providerUID, _roundLimit);
         return (_data.senderReward, _data.adminReward, _data.ownerReward, _round);
     }
+    /* Events */
+    event EProviderOpen(uint256 UID);
+    event EProviderClose(uint256 UID);
+    event EProviderNewDetails(uint256 UID);
+    event EJoinProvider(uint256 UID, address clientAddress);
+    event EPartProvider(uint256 UID, address clientAddress);
+    event EInviteStatus(uint256 UID, address clientAddress, bool status);
 }
