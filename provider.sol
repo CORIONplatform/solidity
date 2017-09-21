@@ -1,5 +1,9 @@
 /*
     provider.sol
+    1.1.0
+    
+    Rajci 'iFA' Andor @ ifa@corion.io / ifa@ethereumlottery.net
+    CORION Platform
 */
 pragma solidity ^0.4.16;
 
