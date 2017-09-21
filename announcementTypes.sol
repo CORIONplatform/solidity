@@ -1,5 +1,6 @@
 /*
     announcementTypes.sol
+    1.0.0
     
     Rajci 'iFA' Andor @ ifa@corion.io / ifa@ethereumlottery.net
     CORION Platform
