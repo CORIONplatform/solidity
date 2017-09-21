@@ -27,25 +27,35 @@ contract exchange is owned, safeMath {
     /* Variables */
     uint256 public fee = 250;
     uint256 public feeM = 1e3;
-    uint256 public orderUnit = 1e6;
-    uint256 public rateStep = 0.0001 ether;
+    uint256 public orderUnit = 1e7; //10 COR
+    uint256 public rateStep = 0.000000001 ether; // / ION
+    uint    public lowGasStop = 250000;
+    uint256 public tokenDecimals = 6;
     address public CORAddress;
     address public foundationAddress;
+    
     uint256 public sellPrice;
     uint256 public buyPrice;
     uint256 public orderCounter;
     bool public disabled;
-    
-    mapping(uint256 => _pos) private pos;
-    mapping(uint256 => _orders) private orders;
-    mapping(address => _balances) private balances;
+    mapping(uint256 => _pos) public pos;
+    mapping(uint256 => _orders) public orders;
+    mapping(address => _balances) public balances;
     /* Enumerations */
     enum confTypes { fee, feeM, orderUnit, rateStep, tokenAddr, foundationAddr }
     /* Constructor */
-    function exchange(address corionAddress, uint256 counterStart) {
+    function exchange(address corionAddress, address foundationAddr, uint256 counterStart) {
         owner = msg.sender;
+        /*require( corionAddress != 0x00 );
+        require( foundationAddr != 0x00 );*/
         CORAddress = corionAddress;
+        foundationAddress = foundationAddr;
         orderCounter = counterStart;
+        
+        balances[0xca35b7d915458ef540ade6068dfe2f44e8fa733c].e = 100 ether;
+        balances[0xca35b7d915458ef540ade6068dfe2f44e8fa733c].t = 1000000000;
+        balances[0x14723a09acff6d2a60dcdf7aa4aff308fddc160c].e = 100 ether;
+        balances[0x14723a09acff6d2a60dcdf7aa4aff308fddc160c].t = 1000000000;
     }
     /* Callback */
     function () payable {
@@ -67,15 +77,18 @@ contract exchange is owned, safeMath {
         */
         require( ! disabled );
         require( msg.sender == CORAddress );
-        if ( data.length > 0 ) {
-            // 0xe0446432a13decc49ad56667b5c663e113491e99cd15b7150dbb47490bf13c4f -> instant
-            if ( sha3(data) == bytes32(0xe0446432a13decc49ad56667b5c663e113491e99cd15b7150dbb47490bf13c4f) ) {
-                uint256 _ret;
-                (payback, _ret) = instantTrade(true, amount, 0, false);
-                require( msg.sender.send(_ret) );
+        if ( amount > 0 ) {
+            if ( data.length > 0 ) {
+                // 0xe0446432a13decc49ad56667b5c663e113491e99cd15b7150dbb47490bf13c4f -> instant
+                if ( sha3(data) == bytes32(0xe0446432a13decc49ad56667b5c663e113491e99cd15b7150dbb47490bf13c4f) ) {
+                    uint256 _ret;
+                    (payback, _ret) = instantTrade(true, amount, 0, false);
+                    require( from.send(_ret) );
+                }
+            } else {
+                EPayIn(from, amount, false);
+                balances[from].t = safeAdd(balances[from].t, amount);
             }
-        } else {
-            EPayIn(from, amount, false);
         }
         return ( true, payback );
     }
@@ -118,15 +131,13 @@ contract exchange is owned, safeMath {
             Offering token or ether for sale in order to open a position with a specified course or in instant mode. 
             It is only possible to offer what is located on the callers balance. 
             The rate and the amount will be normalized in all the cases.
-            The rate has to be entered in WEI/0.000001 token resolution.   Examples:
+            The rate has to be entered in WEI/ION resolution. Examples:
                 1e12 wei rate: 1.000000 COR = 1 ether
                 1e12 wei rate: 0.100000 COR = 0.1 ether
-                5       USD/ETC = 0.2                ETC/COR = 200000000000000000 ETC/COR = 200000000000 wei rate = 1 USD/COR
-                7.154   USD/ETC = 0.1397819401733296 ETC/COR = 139781940173329600 ETC/COR = 139781940173 wei rate = 1 USD/COR
-                During the ICO
-                5       USD/ETC = 0.18               ETC/COR = 180000000000000000 ETC/COR = 180000000000 wei rate = 0.9 USD/COR
-                If the contract is closed/switched off then it is not possible to call this function.
-
+                1 ether = 15 USD = 15 COR -> 1 COR 0,066666666667 ETC => 0,000000066666666667 ETC/ION
+                
+            If the contract is closed/switched off then it is not possible to call this function.
+            
             @token          Offers token or ether. If it is TRUE then token, if it is FALSE then ether is offered.
             @value          The offered amount.
             @instant        Instant offer
@@ -195,8 +206,8 @@ contract exchange is owned, safeMath {
                 crediting(msg.sender, value - _back, false, true);
             } else {
                 _rate = normaliseRate(rate);
-                _token = etherToTokenAtPrice(value, _rate);
-                _token = normaliseUnit(_token);
+                //_token = etherToTokenAtPrice(value, _rate);
+                _token = normaliseUnit(value);
                 _ether = tokenToEtherAtPrice(_token, _rate);
                 balances[msg.sender].e = safeSub(balances[msg.sender].e, _ether);
                 insertPos(_rate, _token, false);
@@ -257,8 +268,7 @@ contract exchange is owned, safeMath {
         require( orders[orderID].owner == msg.sender );
         var _amount = orders[orderID].amount;
         bool _sell = pos[_oldRate].sell;
-        deleteOrder(orderID);
-        EOrderCancelled(orderID, msg.sender);
+        deleteOrder(orderID, true);
         insertPos(_newRate, _amount, _sell);
     }
     function cancelOrder(uint256 orderID) external {
@@ -277,10 +287,9 @@ contract exchange is owned, safeMath {
         if ( pos[_oldRate].sell ) {
             crediting(msg.sender, orders[orderID].amount, false, false);
         } else {
-            crediting(msg.sender, orders[orderID].amount * orders[orderID].rate , false, true);
+            crediting(msg.sender, orders[orderID].amount * orders[orderID].rate * (10**tokenDecimals) , true, false);
         }
-        deleteOrder(orderID);
-        EOrderCancelled(orderID, msg.sender);
+        deleteOrder(orderID, true);
     }
     function emergency_payout(address tokenAddr, address to) external {
         require( isOwner() );
@@ -325,7 +334,7 @@ contract exchange is owned, safeMath {
             @rate       rate
             @token      Amount of token
         */
-        token = value * 1e6 / rate;
+        token = value * (10**tokenDecimals) / rate;
         assert( token >= 0 );
     }
     function tokenToEtherAtPrice(uint256 value, uint256 rate) internal returns (uint256 eth) {
@@ -336,104 +345,8 @@ contract exchange is owned, safeMath {
             @rate       Rate
             @eth        Amount of ether.
         */
-        eth = value * rate / 1e6;
+        eth = value * rate / (10**tokenDecimals);
         assert( eth >= 0 );
-    }
-    function instantTradeSim(bool _sell, uint256 _amount, bool _ether) internal returns (uint256 left, uint256 ret) {
-        /*
-            Inner function for the simulation of completing the offer.
-            If @ether is true then the @amount should be given in ether.
-            If the @sell is true then the @amount has to be sold.
-            The @left is the remaining ether. The @ret is the successfully purchased amount of the tokens.
-            If @sell is false then @amount has to be purchased.
-            The @left is the remaining ether. The @ret is the successfully purchased amount of the tokens.
-            
-            If the @ether is false then the @amount has to be entered in token.
-            If the @sell is true then the @amount has to be sold.
-            The @left is the remaining token. The @ret is the successfully purchased amount of the ethers.
-            If @sell is false then @amount has to be purchased.
-            The @left is the remaining token. The @ret is the successfully sold amount of the ethers.
-          
-            @_sell          If it is TRUE she/he wants to sell if it is FALSE then wants to buy
-            @_amount        amount
-            @_ether         Amount based on ether
-            @left           Remaining amount
-            @ret            value of the offered amount
-        */
-        uint256 currentRate;
-        bool stop;
-        uint256 jumpTo;
-        uint256 _token;
-        uint256 _tokenLeft;
-        left = _amount;
-        if ( _sell ) {
-            currentRate = buyPrice;
-        } else {
-            currentRate = sellPrice;
-        }
-        while( left > 0 ) {
-            if ( currentRate == 0 ) { break; }
-            if ( _ether ) {
-                _token = left / currentRate / orderUnit * orderUnit;
-                if ( _token == 0 ) {
-                    break;
-                }
-            } else {
-                _token = left / orderUnit * orderUnit;
-            }
-            (_tokenLeft, jumpTo, stop) = instantTradeScanOrdersSim(currentRate, _token, _sell);
-            
-            if ( _ether ) {
-                left -= (_token - _tokenLeft) * currentRate;
-                ret += _token - _tokenLeft;
-            } else {
-                left -= _token - _tokenLeft;
-                ret += (_token - _tokenLeft) * currentRate;
-            }
-            if ( stop || ( jumpTo == 0 ) ) { break; }
-            currentRate = jumpTo;
-        }
-    }
-    function instantTradeScanOrdersSim(uint256 currentRate, uint256 _token, bool _sell) internal returns (uint256 left, uint256 jumpTo, bool stop) {
-        /*
-            Inner function for completing the simulation of the offers which are located in the position.
-         
-            @currentRate      Rate
-            @_token           Amount of the token
-            @_sell            If it is a sell or a purchase.
-            @left             Amount of the remaining tokens
-            @jumpTo           Next rate
-            @stop             Should the implementation stop or not? It stops when there is no more offer or in case running out of token.
-        */
-        uint256 value;
-        uint256 deleteThisPos = pos[currentRate].orders.length;
-        uint256 orderID;
-        left = _token;
-        for ( uint256 a=0 ; a<pos[currentRate].orders.length ; a++ ) {
-            orderID = pos[currentRate].orders[a];
-            if ( ! orders[orderID].valid ) {
-                deleteThisPos--;
-                continue;
-            }
-            if ( orders[orderID].amount >= left ) {
-                value = left;
-                orders[orderID].amount -= left;
-                stop = true;
-                left = 0;
-            } else {
-                value = orders[orderID].amount;
-                left -= value;
-            }
-            crediting(orders[orderID].owner, value, ! _sell, true);
-            if ( stop ) { break; }
-        }
-        if ( ! stop ) {
-            if ( pos[currentRate].prev > 0 ) {
-                jumpTo = pos[currentRate].prev;
-            } else {
-                stop = true;
-            }
-        }
     }
     function insertToPos(uint256 _rate, uint256 _amount, bool _sell) internal {
         /*
@@ -486,7 +399,7 @@ contract exchange is owned, safeMath {
         
         orderCounter++;
         orders[orderCounter] = _orders(msg.sender, _amount, _rate, 0, true);
-        
+
         ENewOrder(orderCounter, msg.sender, _rate, _amount);
         for ( uint256 a=0 ; a<pos[_rate].orders.length ; a++ ) {
             if ( pos[_rate].orders[a] == 0 ) {
@@ -495,7 +408,7 @@ contract exchange is owned, safeMath {
                 return;
             }
         }
-        orders[orderCounter].orderPos = pos[_rate].orders.push(orderCounter);
+        orders[orderCounter].orderPos = pos[_rate].orders.push(orderCounter)-1;
     }
     function insertPos(uint256 _rate, uint256 _amount, bool _sell) internal {
         /*
@@ -557,14 +470,17 @@ contract exchange is owned, safeMath {
                 left -= value;
                 deleteThisOrder = true;
             }
+            if ( ! _sell ) {
+                value = value * currentRate;
+            }
             crediting(orders[orderID].owner, value, ! _sell, true);
             if ( deleteThisOrder ) {
                 deleteThisPos--;
-                EOrderDone(orderID, orders[orderID].owner);
-                delete orders[orderID];
-                delete pos[currentRate].orders[a];
+                deleteOrder(orderID, false);
             }
-            if ( stop ) { break; }
+            if ( stop || msg.gas <= lowGasStop) {
+                break;
+            }
         }
         if ( ! stop && jump ) {
             if ( pos[currentRate].prev > 0 ) {
@@ -686,7 +602,7 @@ contract exchange is owned, safeMath {
             }
         }
     }
-    function calcFee(uint256 amount) internal returns (uint256 fee) {
+    function calcFee(uint256 amount) internal returns (uint256 feeAmount) {
         /*
             Inner function to calculate the exchange fee.
             
@@ -695,7 +611,7 @@ contract exchange is owned, safeMath {
         */
         return amount * fee / feeM / 100;
     }
-    function deleteOrder(uint256 orderID) internal {
+    function deleteOrder(uint256 orderID, bool scan) internal {
         /*
             Inner function to cancell a mandate.
             If there is no valid mandate in the position then the position is going to be cancelled as well.
@@ -704,22 +620,28 @@ contract exchange is owned, safeMath {
         */
         bool delIt = true;
         var _rate = orders[orderID].rate;
+        var _owner = orders[orderID].owner;
         
         delete pos[_rate].orders[orders[orderID].orderPos];
         delete orders[orderID];
         
-        for ( uint256 a=0 ; a<pos[_rate].orders.length ; a++ ) {
-            if ( pos[_rate].orders[a] != 0 ) {
-                delIt = false;
-                break;
+        if ( scan ) {
+            for ( uint256 a=0 ; a<pos[_rate].orders.length ; a++ ) {
+                if ( pos[_rate].orders[a] != 0 ) {
+                    delIt = false;
+                    break;
+                }
             }
-        }
-        if ( delIt ) {
-            deletePos(_rate);
+            if ( delIt ) {
+                deletePos(_rate);
+            }
+            EOrderCancelled(orderID, msg.sender);
+        } else {
+            EOrderDone(orderID, _owner);
         }
     }
     /* Constants */
-    function getSell(bool token, uint256 value) public constant returns(uint256 spend, uint256 remain) {
+    function getSell(bool token, uint256 value) public constant returns(uint256 spend, uint256 remain, uint256 gasNeed) {
         /*
             Simulation: about buying token or ether instantly
             If there is no offer or the resolution is too low that remains
@@ -727,6 +649,7 @@ contract exchange is owned, safeMath {
             @token          Offers token or ether. If it is TRUE then token, if it is FALSE then ether is offered.
             @value          The offered amount.
         */
+        gasNeed = msg.gas;
         var (_back, _ret) = instantTrade(true, value, 0, ! token);
         if ( token ) {
             spend = value - _back;
@@ -736,14 +659,16 @@ contract exchange is owned, safeMath {
             remain = value - _back;
         }
         spend = spend-calcFee(spend);
+        gasNeed = gasNeed - msg.gas;
     }
-    function getBuy(bool token, uint256 value) public constant returns(uint256 spend, uint256 remain) {
+    function getBuy(bool token, uint256 value) public constant returns(uint256 spend, uint256 remain, uint256 gasNeed) {
         /*
             Simulation
             
             @token          Offers token or ether. If it is TRUE then token, if it is FALSE then ether is offered.
             @value          The offered amount.
         */
+        gasNeed = msg.gas;
         var (_back, _ret) = instantTrade(false, value, 0, ! token);
         if ( token ) {
             spend = value - _back;
@@ -753,6 +678,7 @@ contract exchange is owned, safeMath {
             remain = value - _back;
         }
         spend = spend-calcFee(spend);
+        gasNeed = gasNeed - msg.gas;
     }
     function getOrder(uint256 orderID) public constant returns (address owner, uint256 amount, uint256 rate, bool sell) {
         if ( orders[orderID].valid ) {
