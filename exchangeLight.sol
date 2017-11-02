@@ -1,6 +1,6 @@
 /*
     exchangeLight.sol
-    1.0.0
+    1.1.0
     
     Rajci 'iFA' Andor @ ifa@corion.io / ifa@ethereumlottery.net
     CORION Platform
@@ -15,7 +15,7 @@ contract exchange is owned, safeMath {
     /* Variables */
     uint256 public exchangeRate;
     uint256 public exchangeRateM = 1e3;
-    uint256 public maxReceiveEther = 2e17; // 0.2 ETC
+    uint256 public maxReceiveEther = 0.3 ether;
     uint256 public exchangeRateShift = 120; // +20%
     address public exchangeRateManager;
     address public foundation = 0xbed261d8da9f13dfd10bf568ea22d353c15737da;
@@ -34,17 +34,11 @@ contract exchange is owned, safeMath {
     /* Externals */
     function receiveToken(address sender, uint256 amount, bytes data) external returns (bool success, uint256 sendBack) {
         require( msg.sender == CORAddress );
-        require( amount > 1000000 );
-        require( sender.balance < maxReceiveEther );
-        var _max = calcETCtoCOR(maxReceiveEther);
-        uint256 _amount = amount;
-        if ( _amount > _max ) {
-            _amount = _max;
-        }
-        var _reward = calcCORtoETC(_amount);
-        // sending ether
-        require( sender.call.value(_reward)() );
-        return ( true, safeSub(amount, _amount) );
+        require( amount > 0 );
+        require( sender.balance <= maxReceiveEther );
+        require( amount <= calcETCtoCOR(maxReceiveEther*2) );
+        require( sender.call.value(calcCORtoETC(amount))() );
+        return ( true, 0 );
     }
     function approvedToken(address addr, uint256 amount, bytes data) external returns (bool) { revert(); }
     function getEther() external {
@@ -61,6 +55,18 @@ contract exchange is owned, safeMath {
     function setCORAddress(address newCORAddress) external {
         require( isOwner() );
         CORAddress = newCORAddress;
+    }
+    function setMaxReceiveEther(uint256 amount) external {
+        require( isOwner() );
+        maxReceiveEther = amount;
+    }
+    function setFoundationAddress(address addr) external {
+        require( isOwner() );
+        foundation = addr;
+    }
+    function setExchangeRateShift(uint256 value) external {
+        require( isOwner() );
+        exchangeRateShift = value;
     }
     function setExchangeRate(uint256 newExchangeRate) external {
         require( msg.sender == exchangeRateManager );
