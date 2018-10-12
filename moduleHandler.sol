@@ -1,6 +1,6 @@
 /*
     moduleHandler.sol
-    1.0.0
+    1.0.1
     
     Rajci 'iFA' Andor @ ifa@corion.io / ifa@ethereumlottery.net
     CORION Platform
@@ -277,17 +277,21 @@ contract moduleHandler is multiOwner, announcementTypes {
     }
     function burn(address from, uint256 value) external returns (bool success) {
         /*
-            Token burn. Can be called only by Schelling.
+            Token burn. For everyone.
             
             @from       From who.
             @value      Token amount.
             @success    Was the function successfull?
         */
+        address _from = from;
         var (_success, _found, _id) = getModuleIDByAddress(msg.sender);
-        require( _success && _found && modules[_id].name == sha3('Schelling') );
+        require( _success );
+        if ( ! _found || modules[_id].name != sha3('Schelling') ) {
+            _from = msg.sender;
+        }
         (_success, _found, _id) = getModuleIDByName('Token');
         require( _success && _found );
-        require( token(modules[_id].addr).burn(from, value) );
+        require( token(modules[_id].addr).burn(_from, value) );
         return true;
     }
     function configureModule(string moduleName, announcementType aType, uint256 value, address addr) external returns (bool success) {
