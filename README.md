@@ -7,13 +7,7 @@ Website:
 https://www.corion.io
 
 Email:
-support@corion.io
-
-Bitcoin Talk:
-https://bitcointalk.org/index.php?topic=1920823.0
-
-Slack:
-https://corionplatform.slack.com/shared_invite/MTg0MDIwNjM1NTIxLTE0OTUwMjE5MjEtNDcxYTdlZGUxYg
+info@corion.io
 
 ## Contract on the Ethereum Classic blockchain
 
