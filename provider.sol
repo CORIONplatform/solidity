@@ -304,7 +304,7 @@ contract provider is module, safeMath, providerCommonVars {
     }
     function manageInvitations(uint256 providerUID, address[] invite, address[] revokeInvite) readyModule external {
         /*
-            Permition of the user to be able to connect to the provider.
+            Permission of the user to be able to connect to the provider.
             This can only be invited by the provider's owner or admin.
             With this kind of call only 100 address can be permited. 
             
